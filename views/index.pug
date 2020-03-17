@@ -1,0 +1,8 @@
+extends ./layout/index
+
+block content
+    h2 Home page
+    if (currentUser.isGuest())
+        p Hello, Guest!
+    else
+        p Hello, #{currentUser.getName()}

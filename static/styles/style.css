@@ -1,0 +1,23 @@
+body {
+  font-family: Arial, sans-serif;
+  font-size: 14px; }
+
+.header {
+  display: flex; }
+
+.ml-2 {
+  margin-left: 10px; }
+
+.mb-2 {
+  margin-bottom: 10px; }
+
+.mt-1 {
+  margin-top: 5px; }
+
+.mt-2 {
+  margin-top: 10px; }
+
+.red {
+  color: red; }
+
+/*# sourceMappingURL=style.css.map */

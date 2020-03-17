@@ -1,0 +1,13 @@
+extends ./layout/index
+
+block content
+    h2 Вход
+    form(action="/login" method="POST")
+        div.mb-2
+            small Ник
+            input(type="text" name="nickname" autocomplete="off").ml-2
+        div.mb-2
+            small Пароль
+            input(type="password" name="password" autocomplete="off").ml-2
+        div.mb-2
+            input(type="submit" value="Вход")

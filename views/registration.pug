@@ -1,0 +1,19 @@
+extends ./layout/index
+
+block content
+    h2 Регистрация
+    form(action="/registration" method="POST")
+        div.mb-2
+            small Ник
+            input(type="text" name="nickname" autocomplete="off" value=form.nickname).ml-2
+            if (errors.nickname)
+                div.mt-1
+                    small.red #{errors.nickname}
+        div.mb-2
+            small Пароль
+            input(type="password" name="password" autocomplete="off" value=form.password).ml-2
+            if (errors.password)
+                div.mt-1
+                    small.red #{errors.password}
+        div.mb-2
+            input(type="submit" value="Регистрация")
