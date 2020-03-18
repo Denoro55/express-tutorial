@@ -1,6 +1,6 @@
 window.onload = function() {
     (() => {
-        const socket = io();
+        const socket = io('https://fathomless-brushlands-15572.herokuapp.com/');
 
         // init
         let name;
