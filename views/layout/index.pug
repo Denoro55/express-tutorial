@@ -7,10 +7,14 @@ html
         header
             .header
                 a(href="/") Главная
-                a(href="/login").ml-2 Вход
-                a(href="/registration").ml-2 Авторизация
+
+                if (currentUser.isGuest())
+                    a(href="/login") Вход
+                    a(href="/registration") Авторизация
+
                 if (!currentUser.isGuest())
-                    form(action="/session?_method=DELETE" method="POST").ml-2
+                    a(href="/game") Игра
+                    form(action="/session?_method=DELETE" method="POST")
                         button(type="submit") Выход
-        hr
         block content
+        block script

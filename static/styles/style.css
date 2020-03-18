@@ -1,9 +1,24 @@
+.game__engine {
+  display: none; }
+
+.game.active .game__room {
+  display: none; }
+.game.active .game__engine {
+  display: block; }
+
 body {
   font-family: Arial, sans-serif;
-  font-size: 14px; }
+  font-size: 14px;
+  padding: 10px; }
 
 .header {
-  display: flex; }
+  display: flex;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #ddd; }
+  .header a, .header form {
+    margin-left: 15px; }
+    .header a:first-child, .header form:first-child {
+      margin-left: 0; }
 
 .ml-2 {
   margin-left: 10px; }
@@ -19,5 +34,34 @@ body {
 
 .red {
   color: red; }
+
+.room-list {
+  display: flex;
+  padding-top: 5px;
+  list-style: none;
+  padding-left: 0; }
+  .room-list li {
+    margin-right: 10px; }
+
+.game {
+  display: flex;
+  align-items: flex-start; }
+  .game__players {
+    padding-left: 20px; }
+
+.players__title {
+  margin-bottom: 20px; }
+.players__item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px; }
+  .players__item-name {
+    margin-right: 10px; }
+
+#game {
+  background-color: black; }
+
+.sprites {
+  display: none; }
 
 /*# sourceMappingURL=style.css.map */

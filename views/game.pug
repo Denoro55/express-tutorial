@@ -1,0 +1,24 @@
+extends ./layout/index
+
+block content
+    .game
+        .game__room
+            h3 Создайте свою комнату
+            form#js-create-room
+                input(type="number")
+                input(type="submit" value="Создать комнату")
+            p Присодиняйтесь к уже созданным комнатам:
+            hr
+            ul.room-list
+        .game__engine
+            h3.js-game-status Ожидание противника...
+            .game
+                .game__left
+                    canvas#game(width="700" height="480")
+                    .sprites
+                        img(src="/static/img/bg.jpg" alt="")#bg
+
+    script(src="/socket.io/socket.io.js")
+
+block script
+    script(src="/static/scripts/game.js")

@@ -5,9 +5,18 @@ block content
     form(action="/login" method="POST")
         div.mb-2
             small Ник
-            input(type="text" name="nickname" autocomplete="off").ml-2
+            input(type="text" name="nickname" autocomplete="off" value=form.nickname).ml-2
+            if (errors.nickname)
+                div.mt-1
+                    small.red #{errors.nickname}
         div.mb-2
             small Пароль
-            input(type="password" name="password" autocomplete="off").ml-2
+            input(type="password" name="password" autocomplete="off" value=form.password).ml-2
+            if (errors.password)
+                div.mt-1
+                    small.red #{errors.password}
+            if (errors.main)
+                div.mt-1
+                    small.red #{errors.main}
         div.mb-2
             input(type="submit" value="Вход")

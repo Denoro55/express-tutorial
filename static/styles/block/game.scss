@@ -1,0 +1,17 @@
+.game {
+    &__engine {
+        display: none;
+    }
+}
+
+.game.active {
+    .game {
+        &__room {
+            display: none;
+        }
+
+        &__engine {
+            display: block;
+        }
+    }
+}

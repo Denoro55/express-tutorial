@@ -14,7 +14,11 @@ const encrypt = require('./helpers/encrypt');
 const Guest = require('./entities/Guest');
 const User = require('./entities/User');
 
-const app = new express();
+// const app = new express();
+const app = require('express')();
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
+
 const logger = morgan('combined');
 // app.use(logger);
 
@@ -26,6 +30,7 @@ if (fs.existsSync(config.db.users)) {
 }
 
 app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 app.use(methodOverride('_method'));
 
 app.use(session({
@@ -48,17 +53,116 @@ app.use(function(req, res, next) {
     next();
 });
 
+// sockets
+let rooms = {};
+const roomPrefix = 'room_';
+
+const getRoom = (id) => {
+    return roomPrefix + id;
+};
+
+io.on('connection', function(socket) {
+    console.log('a user connected: ', socket.id);
+
+    socket.on('init', function() {
+        console.log('init', rooms);
+        socket.emit('init', { rooms });
+    });
+
+    socket.on('createRoom', function(data) {
+        rooms[data.roomId] = {
+            admin: {
+                name: data.name,
+                id: socket.id
+            },
+            opponent: {
+                name: null,
+                id: null
+            }
+        };
+        socket.join(getRoom(data.roomId));
+        io.emit('roomListUpdated', { rooms });
+        console.log(rooms);
+    });
+
+    socket.on('joinRoom', function(data) {
+        socket.join(getRoom(data.roomId));
+        rooms[data.roomId].opponent.name = data.name;
+        rooms[data.roomId].opponent.id = socket.id;
+        const gameData = {
+            status: rooms[data.roomId].admin.name + ' против ' + rooms[data.roomId].opponent.name,
+            roomId: data.roomId,
+            player1: {
+                name: rooms[data.roomId].admin.name,
+            },
+            player2: {
+                name: rooms[data.roomId].opponent.name,
+            },
+            player: 2
+        };
+        socket.emit('startGame', gameData); // second player
+        socket.broadcast.to(getRoom(data.roomId)).emit('startGame', { ...gameData, player: 1 }); // admin player
+        console.log(rooms);
+    });
+
+    // game
+    socket.on('gameChangeTurn', function(data) {
+        socket.broadcast.to(getRoom(data.roomId)).emit('gameChangeTurn', { code: data.attackCode });
+    });
+
+    socket.on('gameEndCalculating', function(data) {
+        socket.broadcast.to(getRoom(data.roomId)).emit('gameEndCalculating', { health1: data.health1, health2: data.health2 });
+    });
+
+    socket.on('gameEndAttack', function(data) {
+        socket.broadcast.to(getRoom(data.roomId)).emit('gameEndAttack', {} );
+    });
+
+    socket.on('gameEndTurn', function(data) {
+        socket.broadcast.to(getRoom(data.roomId)).emit('gameEndTurn', {} );
+    });
+
+    socket.on('disconnect', function() {
+        console.log('disconnect, ', socket.id);
+        const hostedRoom = Object.entries(rooms).find(([k, v]) => {
+            return v.admin.id === socket.id
+        });
+        if (hostedRoom !== undefined) {
+            console.log('delete room: ', hostedRoom[0]);
+            delete rooms[hostedRoom[0]];
+            io.emit('roomListUpdated', { rooms });
+        }
+        console.log(rooms);
+    });
+});
+
 // routes
-app.get('/', (req, res, next) => {
+app.get('/', (req, res) => {
     res.render('index');
 });
 
-app.get('/registration', (req, res, next) => {
+app.get('/registration', (req, res) => {
     res.render('registration', {form: {}, errors: {}});
 });
 
-app.get('/login', (req, res, next) => {
+app.get('/login', (req, res) => {
     res.render('login', {form: {}, errors: {}});
+});
+
+app.get('/game', (req, res) => {
+    res.render('game');
+});
+
+app.get('/room', (req, res) => {
+    res.render('room');
+});
+
+app.post('/getName', (req, res) => {
+    if (req.session.nickname) {
+        res.json({name: req.session.nickname})
+    } else {
+        res.json({name: 'no name'})
+    }
 });
 
 app.post('/registration', (req, res, next) => {
@@ -97,15 +201,29 @@ app.post('/registration', (req, res, next) => {
 
 app.post('/login', (req, res) => {
     const {nickname, password} = req.body;
-    const user = users.find(u => u.nickname === nickname);
-    if (user && user.password === encrypt(password)) {
-        req.session.nickname = nickname;
-        res.redirect('/');
-        return;
+    const errors = {};
+
+    if (!nickname) {
+        errors.nickname = 'Неверное имя';
+    }
+
+    if (!password) {
+        errors.password = 'Неверный пароль';
+    }
+
+    if (Object.keys(errors).length === 0) {
+        const user = users.find(u => u.nickname === nickname);
+        if (user && user.password === encrypt(password)) {
+            req.session.nickname = nickname;
+            res.redirect('/');
+            return;
+        } else {
+            errors.main = 'Неверное имя или пароль';
+        }
     }
 
     res.status(422);
-    res.render('login');
+    res.render('login', {form: req.body, errors});
 });
 
 app.delete('/session', (req, res) => {
@@ -131,4 +249,4 @@ app.use((err, req, res, next) => {
     }
 });
 
-module.exports = app;
+module.exports = http;

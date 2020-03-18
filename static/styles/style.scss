@@ -1,10 +1,23 @@
+@import './block/game';
+
 body {
     font-family: Arial, sans-serif;
     font-size: 14px;
+    padding: 10px;
 }
 
 .header {
     display: flex;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+
+    a, form {
+        &:first-child {
+            margin-left: 0;
+        }
+
+        margin-left: 15px;
+    }
 }
 
 .ml-2 {
@@ -25,4 +38,48 @@ body {
 
 .red {
     color: red;
- }
+}
+
+.room-list {
+    display: flex;
+    padding-top: 5px;
+    list-style: none;
+    padding-left: 0;
+
+    li {
+        margin-right: 10px;
+    }
+}
+
+.game {
+    display: flex;
+    align-items: flex-start;
+
+    &__players {
+        padding-left: 20px;
+    }
+}
+
+.players {
+    &__title {
+        margin-bottom: 20px;
+    }
+
+    &__item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+
+        &-name {
+            margin-right: 10px;
+        }
+    }
+}
+
+#game {
+    background-color: black;
+}
+
+.sprites {
+    display: none;
+}
