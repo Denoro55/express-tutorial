@@ -90,7 +90,7 @@ io.on('connection', function(socket) {
         rooms[data.roomId].opponent.name = data.name;
         rooms[data.roomId].opponent.id = socket.id;
         const gameData = {
-            status: rooms[data.roomId].admin.name + ' против ' + rooms[data.roomId].opponent.name,
+            status: 'Игра',
             roomId: data.roomId,
             player1: {
                 name: rooms[data.roomId].admin.name,
@@ -98,10 +98,10 @@ io.on('connection', function(socket) {
             player2: {
                 name: rooms[data.roomId].opponent.name,
             },
-            player: 2
+            playerIndex: 2
         };
         socket.emit('startGame', gameData); // second player
-        socket.broadcast.to(getRoom(data.roomId)).emit('startGame', { ...gameData, player: 1 }); // admin player
+        socket.broadcast.to(getRoom(data.roomId)).emit('startGame', { ...gameData, playerIndex: 1 }); // admin player
         console.log(rooms);
     });
 
@@ -122,11 +122,25 @@ io.on('connection', function(socket) {
         socket.broadcast.to(getRoom(data.roomId)).emit('gameEndTurn', {} );
     });
 
+    socket.on('gamePlayersStatus', function(data) {
+        socket.broadcast.to(getRoom(data.roomId)).emit('gamePlayersStatus', { status: data.status } );
+    });
+
     socket.on('disconnect', function() {
         console.log('disconnect, ', socket.id);
         const hostedRoom = Object.entries(rooms).find(([k, v]) => {
             return v.admin.id === socket.id
         });
+
+        const roomId = Object.entries(rooms).find(([k, v]) => {
+            return v.admin.id === socket.id || v.opponent && v.opponent.id === socket.id
+        });
+
+        if (roomId) {
+            socket.broadcast.to(getRoom(roomId[0])).emit('gameUserLeft', {} );
+            console.log('Игрок вышел из команты: ', roomId[0]);
+        }
+
         if (hostedRoom !== undefined) {
             console.log('delete room: ', hostedRoom[0]);
             delete rooms[hostedRoom[0]];

@@ -1,0 +1,12 @@
+.player-info {
+  display: flex; }
+  .player-info__status {
+    display: flex;
+    align-items: center; }
+  .player-info__status-icon {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: green; }
+
+/*# sourceMappingURL=player-info.css.map */

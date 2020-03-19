@@ -1,4 +1,5 @@
 @import './block/game';
+@import './block/player-info';
 
 body {
     font-family: Arial, sans-serif;
@@ -48,31 +49,6 @@ body {
 
     li {
         margin-right: 10px;
-    }
-}
-
-.game {
-    display: flex;
-    align-items: flex-start;
-
-    &__players {
-        padding-left: 20px;
-    }
-}
-
-.players {
-    &__title {
-        margin-bottom: 20px;
-    }
-
-    &__item {
-        display: flex;
-        align-items: center;
-        margin-bottom: 10px;
-
-        &-name {
-            margin-right: 10px;
-        }
     }
 }
 

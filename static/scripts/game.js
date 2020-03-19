@@ -1,6 +1,84 @@
 window.onload = function() {
     (() => {
-        const socket = io('https://fathomless-brushlands-15572.herokuapp.com/');
+        // const socket = io('https://fathomless-brushlands-15572.herokuapp.com/');
+
+        const socket = io(window.location.host);
+
+        class Engine {
+            constructor() {
+                this.name = 'no name';
+                this.game = null;
+                this.active = false;
+                this.roomId = null;
+            }
+
+            setName(name) {
+                this.name = name;
+            }
+
+            setRoomId(id) {
+                this.roomId = id;
+            }
+
+            startGame(player1, player2, myPlayer, roomId) {
+                this.game = new Game({player1, player2, myPlayer, roomId});
+
+                if (!this.active) {
+                    this.run();
+                    this.active = true;
+                }
+            }
+
+            makeTurn(code) {
+                if (this.game) {
+                    this.game.makeTurn(code);
+                }
+            }
+
+            pauseGame() {
+                this.emitToRoom('gamePlayersStatus', {status: false});
+            }
+
+            continueGame() {
+                this.emitToRoom('gamePlayersStatus', {status: true});
+            }
+
+            run() {
+                const frame = () => {
+                    this.game.update();
+                    this.game.render();
+
+                    window.requestAnimationFrame(frame);
+                };
+
+                frame();
+            }
+
+            emitToRoom(url, params) {
+                if (this.roomId) {
+                    const data = {
+                        roomId: this.roomId,
+                        ...params
+                    };
+                    socket.emit(url, data);
+                }
+            }
+        }
+
+        const engine = new Engine();
+
+        document.addEventListener('keydown', (event) => {
+            console.log(event.code);
+            engine.makeTurn(event.code);
+        });
+
+        window.onblur = function () {
+            engine.pauseGame();
+        };
+
+        window.onfocus = function () {
+            engine.continueGame();
+        };
 
         // init
         let name;
@@ -8,6 +86,7 @@ window.onload = function() {
             .then(response => response.json())
             .then(json => {
                 name = json.name;
+                engine.setName(name);
             });
 
         socket.emit('init');
@@ -19,7 +98,9 @@ window.onload = function() {
             gameContainer: document.querySelector('.game'),
             roomsContainer: document.querySelector('.room-list'),
             formCreateRoom: document.getElementById('js-create-room'),
-            gameStatus: document.querySelector('.js-game-status')
+            gameStatus: document.querySelector('.js-game-status'),
+            player1Info: document.querySelector('.js-player-info-1'),
+            player2Info: document.querySelector('.js-player-info-2')
         };
 
         // создание комнаты
@@ -52,8 +133,7 @@ window.onload = function() {
         });
 
         socket.on('startGame', (data) => {
-            elements.gameStatus.innerHTML = data.status;
-            elements.gameContainer.classList.add('active');
+            renderGame(data);
 
             const image = new Image(800, 500);
             image.src = '/static/img/skins/1.jpg';
@@ -73,10 +153,40 @@ window.onload = function() {
                 index: 2
             });
 
-            const myPlayer = data.player === 1 ? player1 : player2;
+            const myPlayer = data.playerIndex === 1 ? player1 : player2;
 
+            engine.setRoomId(data.roomId);
             engine.startGame(player1, player2, myPlayer, data.roomId);
         });
+
+        socket.on('gamePlayersStatus', function(data) {
+            if (data.status) {
+                document.querySelector('.js-opponent-info').classList.remove('off');
+            } else {
+                document.querySelector('.js-opponent-info').classList.add('off');
+            }
+        });
+
+        socket.on('gameUserLeft', function(data) {
+            document.querySelector('.js-opponent-info').classList.add('left');
+        });
+
+        function renderGame(data) {
+            elements.gameStatus.innerHTML = data.status;
+            elements.gameContainer.classList.add('active');
+            elements.gameContainer.classList.add('play');
+
+            elements.player1Info.querySelector('.player-info__name').innerHTML = data.player1.name;
+            elements.player2Info.querySelector('.player-info__name').innerHTML = data.player2.name;
+
+            if (data.playerIndex === 2) {
+                elements.player1Info.classList.add('js-opponent-info');
+            } else {
+                elements.player2Info.classList.add('js-opponent-info');
+            }
+
+            document.querySelector('.js-opponent-info').classList.remove('left');
+        }
 
         const getAttackPosition = {
             1: (options) => {
@@ -406,55 +516,6 @@ window.onload = function() {
                 ctx.fillText(currentPlayer.mana + "/" + currentPlayer.maxmana, manaPosition.x + 5, manaPosition.y + 16);
             }
         }
-
-        // function startGame(player1, player2, myPlayer, roomId) {
-        //     const game = new Game({
-        //         player1,
-        //         player2,
-        //         myPlayer,
-        //         roomId
-        //     });
-        //
-        //     // нажатия клавиш
-        //     document.addEventListener('keydown', (event) => {
-        //         console.log(event.code);
-        //         game.makeTurn(event.code);
-        //     });
-        //
-        //     function update() {
-        //         game.update();
-        //         game.render();
-        //         window.requestAnimationFrame(update);
-        //     }
-        //
-        //     window.requestAnimationFrame(update);
-        // }
-
-        class Engine {
-            startGame(player1, player2, myPlayer, roomId) {
-                this.game = new Game({player1, player2, myPlayer, roomId});
-
-                document.addEventListener('keydown', (event) => {
-                    console.log(event.code);
-                    this.game.makeTurn(event.code);
-                });
-
-                this.run();
-            }
-
-            run() {
-                const frame = () => {
-                    this.game.update();
-                    this.game.render();
-
-                    window.requestAnimationFrame(frame);
-                };
-
-                frame();
-            }
-        }
-
-        const engine = new Engine();
 
         class Player {
             constructor(options) {

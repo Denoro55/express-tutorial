@@ -1,0 +1,28 @@
+.player-info {
+    display: flex;
+
+    &__status {
+        display: flex;
+        align-items: center;
+        margin-left: 10px;
+    }
+
+    &__status-icon {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: green;
+    }
+}
+
+.player-info.off {
+    .player-info__status-icon {
+        background-color: red;
+    }
+}
+
+.player-info.left {
+    .player-info__status-icon {
+        background-color: black;
+    }
+}

@@ -1,10 +1,37 @@
-.game__engine {
-  display: none; }
+.game {
+  width: 700px; }
+  .game__players {
+    display: none;
+    padding-bottom: 15px;
+    justify-content: space-between; }
+  .game__engine {
+    display: none; }
 
 .game.active .game__room {
   display: none; }
 .game.active .game__engine {
   display: block; }
+
+.game.play .game__players {
+  display: flex; }
+
+.player-info {
+  display: flex; }
+  .player-info__status {
+    display: flex;
+    align-items: center;
+    margin-left: 10px; }
+  .player-info__status-icon {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: green; }
+
+.player-info.off .player-info__status-icon {
+  background-color: red; }
+
+.player-info.left .player-info__status-icon {
+  background-color: black; }
 
 body {
   font-family: Arial, sans-serif;
@@ -41,21 +68,6 @@ body {
   list-style: none;
   padding-left: 0; }
   .room-list li {
-    margin-right: 10px; }
-
-.game {
-  display: flex;
-  align-items: flex-start; }
-  .game__players {
-    padding-left: 20px; }
-
-.players__title {
-  margin-bottom: 20px; }
-.players__item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px; }
-  .players__item-name {
     margin-right: 10px; }
 
 #game {

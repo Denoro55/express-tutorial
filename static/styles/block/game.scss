@@ -1,4 +1,12 @@
 .game {
+    width: 700px;
+
+    &__players {
+        display: none;
+        padding-bottom: 15px;
+        justify-content: space-between;
+    }
+
     &__engine {
         display: none;
     }
@@ -15,3 +23,12 @@
         }
     }
 }
+
+.game.play {
+    .game {
+        &__players {
+            display: flex;
+        }
+    }
+}
+
