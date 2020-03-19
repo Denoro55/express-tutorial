@@ -68,7 +68,7 @@ window.onload = function() {
         const engine = new Engine();
 
         document.addEventListener('keydown', (event) => {
-            console.log(event.code);
+            // console.log(event.code);
             engine.makeTurn(event.code);
         });
 
@@ -272,14 +272,20 @@ window.onload = function() {
             }
 
             makeTurn(code, access = false) {
+                // debug info
+                if (code === 'KeyM') {
+                    console.log(this);
+                    return;
+                }
+
                 if (this.isTurningPlayer() && this.turns < 2 || access) {
-                    console.log('make turn');
+                    console.log('make turn player', this.currentPlayer.index);
                     const attack = this.currentPlayer.controls[code];
                     if (!attack) return;
 
                     this.currentPlayer.setState('attack', attack);
                     this.turns += 1;
-                    socket.emit('gameChangeTurn', { roomId: this.roomId, attackCode: code });
+                    engine.emitToRoom('gameChangeTurn', {attackCode: code});
 
                     if (this.turns >= 2) { // подсчет
                         this.endTurns();
@@ -290,12 +296,12 @@ window.onload = function() {
                         }, 1500);
                     }
                 } else {
-                    console.log('cant make turn');
+                    // console.log('cant make turn');
                 }
             }
 
             changeTurn() {
-                console.log('change turn');
+                console.log('change turn, turns: ', this.turns);
                 this.currentPlayer.options.color = '#fff';
                 this.currentPlayer = this.currentPlayer === this.player1 ? this.player2 : this.player1;
                 this.currentPlayer.options.color = 'aqua';
@@ -309,11 +315,11 @@ window.onload = function() {
                         this.players.forEach(player => {
                             player.setState('endAttack', player.attack.params);
                         });
-                        socket.emit('gameEndAttack', { roomId: this.roomId });
+                        engine.emitToRoom('gameEndAttack');
                         setTimeout(() => {
                             this.turns = 0;
                             this.checkWinner();
-                            socket.emit('gameEndTurn', { roomId: this.roomId });
+                            engine.emitToRoom('gameEndTurn');
                         }, 600);
                     }, 600);
                 }, 1000);
@@ -346,7 +352,6 @@ window.onload = function() {
                 socket.emit('gameEndCalculating', { roomId: this.roomId, health1: player2.hp, health2: player1.hp });
                 // this.player1.showDamage();
                 // this.player2.showDamage();
-
             }
 
             checkWinner() {
@@ -556,22 +561,29 @@ window.onload = function() {
                         position: 2,
                         name: 'Присед'
                     },
+                    'KeyA': {
+                        damage: [15],
+                        attackArea: [0],
+                        attackType: 1,
+                        position: 0,
+                        name: 'Захват в прыжке'
+                    },
                     'KeyF': {
-                        damage: [10, 15],
+                        damage: [10, 20],
                         attackArea: [0, 1],
                         attackType: 1,
                         position: 1,
                         name: 'Удар в голову'
                     },
                     'KeyG': {
-                        damage: [10, 15],
+                        damage: [10, 20],
                         attackArea: [1, 2],
                         attackType: 2,
                         position: 1,
                         name: 'Удар по корпусу'
                     },
                     'KeyH': {
-                        damage: [15, 10],
+                        damage: [15, 5],
                         attackArea: [1, 0],
                         attackType: 1,
                         position: 0,
