@@ -253,7 +253,6 @@ window.onload = function() {
             }
 
             calculateDamage(attack1, attack2) {
-                console.log(attack1, attack2);
                 let player1 = this.player1;
                 let player2 = this.player2;
 
@@ -263,7 +262,7 @@ window.onload = function() {
                         [player1, player2] = [player2, player1];
                     }
                     if (attack1) {
-                        for (let aa = 0; aa < attack1.attackArea.length; aa++) {
+                        for (let aa = 0; aa < attack1.attackArea.length; aa++) { // удар в голову [0,1]
                             if (attack1.attackArea[aa] === attack2.position) {
                                 if (attack2.blockType && attack2.blockType === attack1.attackType) {
                                     player2.updateHealth(Math.floor((-attack1.damage[aa] + (attack1.damage[aa] * attack2.blockPercentage / 100))));
@@ -517,9 +516,9 @@ window.onload = function() {
                     'KeyG': {
                         damage: [10, 20],
                         attackArea: [1, 2],
-                        attackType: 2,
+                        attackType: 1,
                         position: 1,
-                        name: 'Удар по корпусу'
+                        name: 'Удар с ноги'
                     },
                     'KeyH': {
                         damage: [15, 5],
@@ -529,34 +528,34 @@ window.onload = function() {
                         name: 'Удар в прыжке'
                     },
                     'KeyJ': {
-                        damage: [10, 5],
+                        damage: [15, 5],
                         attackArea: [1, 2],
                         attackType: 3,
                         position: 2,
                         name: 'Подножка'
                     },
+                    // 'KeyZ': {
+                    //     damage: [0],
+                    //     attackArea: [-1],
+                    //     position: 1,
+                    //     blockType: 1,
+                    //     blockPercentage: 100,
+                    //     name: 'Верхний блок'
+                    // },
                     'KeyZ': {
                         damage: [0],
                         attackArea: [-1],
                         position: 1,
                         blockType: 1,
-                        blockPercentage: 70,
-                        name: 'Верхний блок'
+                        blockPercentage: 100,
+                        name: 'Блок'
                     },
                     'KeyX': {
                         damage: [0],
                         attackArea: [-1],
-                        position: 1,
-                        blockType: 2,
-                        blockPercentage: 70,
-                        name: 'Блок'
-                    },
-                    'KeyC': {
-                        damage: [0],
-                        attackArea: [-1],
-                        position: 1,
+                        position: 2,
                         blockType: 3,
-                        blockPercentage: 70,
+                        blockPercentage: 100,
                         name: 'Нижний блок'
                     },
                     'KeyL': {
