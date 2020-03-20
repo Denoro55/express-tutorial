@@ -59,7 +59,7 @@ window.onload = function() {
             renderGame(data);
 
             engine.setRoomId(data.roomId);
-            engine.startGame(data.playerIndex);
+            engine.startGame(data.playerIndex, data.player1.name, data.player2.name);
         });
 
         socket.on('gamePlayersStatus', function(data) {
@@ -112,9 +112,9 @@ window.onload = function() {
                 this.ctx = this.canvas.getContext('2d');
                 this.gameWidth = this.canvas.width;
                 this.gameHeight = this.canvas.height;
-                this.player1 = params.player1;
-                this.player2 = params.player2;
-                this.players = [this.player1, this.player2];
+                // this.player1 = params.player1;
+                // this.player2 = params.player2;
+                // this.players = [this.player1, this.player2];
                 this.turns = 0;
                 this.turnTimer = null;
                 this.playerSettings = {
@@ -142,7 +142,7 @@ window.onload = function() {
                 // sockets
                 socket.on('gameChangeTurn', (data) => {
                     console.log('socket change turn');
-                    clearTimeout(this.turnTimer);
+                    // clearTimeout(this.turnTimer);
                     this.turns += 1;
                     const enemyAttack = this.currentPlayer.controls[data.code];
                     this.currentPlayer.setState('attack', enemyAttack);
@@ -150,6 +150,9 @@ window.onload = function() {
                         //
                     } else {
                         this.changeTurn();
+                        this.turnTimer = setTimeout(() => {
+                            this.makeTurn('KeyL', true);
+                        }, 1500);
                     }
                 });
 
@@ -159,7 +162,7 @@ window.onload = function() {
                 });
 
                 socket.on('gameEndAttack', () => {
-                    console.log('socket get game end attack')
+                    console.log('socket get game end attack');
                     this.players.forEach(player => {
                         player.setState('endAttack', player.attack.params);
                     });
@@ -171,12 +174,21 @@ window.onload = function() {
                 });
             }
 
-            start(myPlayerIndex) {
+            start(myPlayerIndex, name1, name2) {
+                this.turns = 0;
+                this.player1 = new Player({
+                    name: name1,
+                    skin: '/static/img/skins/1.jpg',
+                    index: 1
+                });
+                this.player2 = new Player({
+                    name: name2,
+                    skin: '/static/img/skins/2.jpg',
+                    index: 2
+                });
+                this.players = [this.player1, this.player2];
                 this.setMyPlayer(myPlayerIndex);
                 this.currentPlayer = this.player1;
-                this.players.forEach(player => {
-                    player.reset();
-                });
                 this.currentPlayer.currentOptions.color = 'aqua';
             }
 
@@ -196,6 +208,7 @@ window.onload = function() {
                     const attack = this.currentPlayer.controls[code];
                     if (!attack) return;
 
+                    clearTimeout(this.turnTimer);
                     this.currentPlayer.setState('attack', attack);
                     this.turns += 1;
                     engine.emitToRoom('gameChangeTurn', {attackCode: code});
@@ -204,9 +217,9 @@ window.onload = function() {
                         this.endTurns();
                     } else {
                         this.changeTurn();
-                        this.turnTimer = setTimeout(() => {
-                            this.makeTurn('KeyL', true);
-                        }, 1500);
+                        // this.turnTimer = setTimeout(() => {
+                        //     this.makeTurn('KeyL', true);
+                        // }, 1500);
                     }
                 } else {
                     // console.log('cant make turn');
@@ -286,7 +299,8 @@ window.onload = function() {
             restartGame() {
                 this.players.forEach(player => {
                     player.reset();
-                })
+                });
+                this.currentPlayer.currentOptions.color = 'aqua';
             }
 
             isTurningPlayer () {
@@ -402,11 +416,19 @@ window.onload = function() {
                 const healthPosition = {x: offsetX + player.position.x, y: player.position.y - 70};
                 const manaPosition = {x: offsetX + player.position.x, y: player.position.y - 36};
 
+                const healthPercent = currentPlayer.hp / currentPlayer.maxhp;
+
                 ctx.textAlign = "left";
+
+                // health
+                ctx.beginPath();
+                ctx.fillStyle = 'red';
+                ctx.rect(healthPosition.x, healthPosition.y, player.size.x, player.health.size);
+                ctx.fill();
 
                 ctx.beginPath();
                 ctx.fillStyle = player.health.color;
-                ctx.rect(healthPosition.x, healthPosition.y, player.size.x, player.health.size);
+                ctx.rect(healthPosition.x, healthPosition.y, player.size.x * healthPercent, player.health.size);
                 ctx.fill();
 
                 ctx.font = "12px Arial";
@@ -595,18 +617,7 @@ window.onload = function() {
 
         class Engine {
             constructor() {
-                this.game = new Game({
-                    player1: new Player({
-                        name: 'no name',
-                        skin: '/static/img/skins/1.jpg',
-                        index: 1
-                    }),
-                    player2: new Player({
-                        name: 'no name',
-                        skin: '/static/img/skins/2.jpg',
-                        index: 2
-                    })});
-
+                this.game = new Game();
                 this.active = false;
                 this.roomId = null;
 
@@ -619,7 +630,7 @@ window.onload = function() {
                     this.pauseGame();
                 };
 
-                window.onblur = () => {
+                window.onfocus = () => {
                     this.continueGame();
                 };
             }
@@ -632,8 +643,8 @@ window.onload = function() {
                 this.roomId = id;
             }
 
-            startGame(myPlayerIndex, roomId) {
-                this.game.start(myPlayerIndex, roomId);
+            startGame(myPlayerIndex, name1, name2) {
+                this.game.start(myPlayerIndex, name1, name2);
 
                 if (!this.active) {
                     this.run();
