@@ -107,7 +107,7 @@ window.onload = function() {
         };
 
         class Game {
-            constructor(params) {
+            constructor() {
                 this.canvas = document.querySelector('#game');
                 this.ctx = this.canvas.getContext('2d');
                 this.gameWidth = this.canvas.width;
@@ -141,14 +141,15 @@ window.onload = function() {
 
                 // sockets
                 socket.on('gameChangeTurn', (data) => {
-                    console.log('socket change turn');
                     // clearTimeout(this.turnTimer);
                     this.turns += 1;
+                    console.log('socket change turn, ', this.turns);
                     const enemyAttack = this.currentPlayer.controls[data.code];
                     this.currentPlayer.setState('attack', enemyAttack);
                     if (this.turns >= 2) { // подсчет
-                        //
+                        console.log('turns >= 2');
                     } else {
+                        console.log('socket change turn -> change turn');
                         this.changeTurn();
                         this.turnTimer = setTimeout(() => {
                             this.makeTurn('KeyL', true);
@@ -162,13 +163,14 @@ window.onload = function() {
                 });
 
                 socket.on('gameEndAttack', () => {
-                    console.log('socket get game end attack');
+                    console.log('socket gameEndAttack');
                     this.players.forEach(player => {
                         player.setState('endAttack', player.attack.params);
                     });
                 });
 
                 socket.on('gameEndTurn', () => {
+                    console.log('socket gameEndTurn');
                     this.turns = 0;
                     this.checkWinner();
                 });
