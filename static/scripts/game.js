@@ -1,84 +1,7 @@
 window.onload = function() {
     (() => {
         // const socket = io('https://fathomless-brushlands-15572.herokuapp.com/');
-
         const socket = io(window.location.host);
-
-        class Engine {
-            constructor() {
-                this.name = 'no name';
-                this.game = null;
-                this.active = false;
-                this.roomId = null;
-            }
-
-            setName(name) {
-                this.name = name;
-            }
-
-            setRoomId(id) {
-                this.roomId = id;
-            }
-
-            startGame(player1, player2, myPlayer, roomId) {
-                this.game = new Game({player1, player2, myPlayer, roomId});
-
-                if (!this.active) {
-                    this.run();
-                    this.active = true;
-                }
-            }
-
-            makeTurn(code) {
-                if (this.game) {
-                    this.game.makeTurn(code);
-                }
-            }
-
-            pauseGame() {
-                this.emitToRoom('gamePlayersStatus', {status: false});
-            }
-
-            continueGame() {
-                this.emitToRoom('gamePlayersStatus', {status: true});
-            }
-
-            run() {
-                const frame = () => {
-                    this.game.update();
-                    this.game.render();
-
-                    window.requestAnimationFrame(frame);
-                };
-
-                frame();
-            }
-
-            emitToRoom(url, params) {
-                if (this.roomId) {
-                    const data = {
-                        roomId: this.roomId,
-                        ...params
-                    };
-                    socket.emit(url, data);
-                }
-            }
-        }
-
-        const engine = new Engine();
-
-        document.addEventListener('keydown', (event) => {
-            // console.log(event.code);
-            engine.makeTurn(event.code);
-        });
-
-        window.onblur = function () {
-            engine.pauseGame();
-        };
-
-        window.onfocus = function () {
-            engine.continueGame();
-        };
 
         // init
         let name;
@@ -86,7 +9,7 @@ window.onload = function() {
             .then(response => response.json())
             .then(json => {
                 name = json.name;
-                engine.setName(name);
+                // engine.setName(name);
             });
 
         socket.emit('init');
@@ -135,28 +58,8 @@ window.onload = function() {
         socket.on('startGame', (data) => {
             renderGame(data);
 
-            const image = new Image(800, 500);
-            image.src = '/static/img/skins/1.jpg';
-
-            const image2 = new Image(800, 500);
-            image2.src = '/static/img/skins/2.jpg';
-
-            const player1 = new Player({
-                name: data.player1.name,
-                skin: image,
-                index: 1
-            });
-
-            const player2 = new Player({
-                name: data.player2.name,
-                skin: image2,
-                index: 2
-            });
-
-            const myPlayer = data.playerIndex === 1 ? player1 : player2;
-
             engine.setRoomId(data.roomId);
-            engine.startGame(player1, player2, myPlayer, data.roomId);
+            engine.startGame(data.playerIndex);
         });
 
         socket.on('gamePlayersStatus', function(data) {
@@ -212,10 +115,6 @@ window.onload = function() {
                 this.player1 = params.player1;
                 this.player2 = params.player2;
                 this.players = [this.player1, this.player2];
-                this.currentPlayer = this.player1;
-                this.currentPlayer.options.color = 'aqua';
-                this.myPlayer = params.myPlayer;
-                this.roomId = params.roomId;
                 this.turns = 0;
                 this.turnTimer = null;
                 this.playerSettings = {
@@ -260,6 +159,7 @@ window.onload = function() {
                 });
 
                 socket.on('gameEndAttack', () => {
+                    console.log('socket get game end attack')
                     this.players.forEach(player => {
                         player.setState('endAttack', player.attack.params);
                     });
@@ -269,6 +169,19 @@ window.onload = function() {
                     this.turns = 0;
                     this.checkWinner();
                 });
+            }
+
+            start(myPlayerIndex) {
+                this.setMyPlayer(myPlayerIndex);
+                this.currentPlayer = this.player1;
+                this.players.forEach(player => {
+                    player.reset();
+                });
+                this.currentPlayer.currentOptions.color = 'aqua';
+            }
+
+            setMyPlayer(index) {
+                this.myPlayer = index === 1 ? this.player1 : this.player2;
             }
 
             makeTurn(code, access = false) {
@@ -302,9 +215,9 @@ window.onload = function() {
 
             changeTurn() {
                 console.log('change turn, turns: ', this.turns);
-                this.currentPlayer.options.color = '#fff';
+                this.currentPlayer.currentOptions.color = this.currentPlayer.options.color;
                 this.currentPlayer = this.currentPlayer === this.player1 ? this.player2 : this.player1;
-                this.currentPlayer.options.color = 'aqua';
+                this.currentPlayer.currentOptions.color = 'aqua';
             }
 
             endTurns() {
@@ -315,6 +228,7 @@ window.onload = function() {
                         this.players.forEach(player => {
                             player.setState('endAttack', player.attack.params);
                         });
+                        console.log('send end turn');
                         engine.emitToRoom('gameEndAttack');
                         setTimeout(() => {
                             this.turns = 0;
@@ -349,7 +263,7 @@ window.onload = function() {
                     }
                 }
 
-                socket.emit('gameEndCalculating', { roomId: this.roomId, health1: player2.hp, health2: player1.hp });
+                engine.emitToRoom('gameEndCalculating', {health1: player2.hp, health2: player1.hp});
                 // this.player1.showDamage();
                 // this.player2.showDamage();
             }
@@ -476,7 +390,7 @@ window.onload = function() {
                 // other
                 ctx.drawImage(currentPlayer.skin, params.imageX, player.position.y, player.size.x, player.size.y);
                 ctx.beginPath();
-                ctx.strokeStyle = currentPlayer.options.color;
+                ctx.strokeStyle = currentPlayer.currentOptions.color;
                 ctx.rect(params.posX, player.position.y, player.size.x, player.size.y);
                 ctx.stroke();
                 this.drawBars(ctx, params.barX, currentPlayer);
@@ -525,7 +439,7 @@ window.onload = function() {
         class Player {
             constructor(options) {
                 this.name = options.name;
-                this.skin = options.skin;
+                this.setSkin(options.skin);
                 this.wins = 0;
                 this.maxhp = 100;
                 this.hp = this.maxhp;
@@ -540,6 +454,9 @@ window.onload = function() {
                         startTime: 195,
                         speed: 6
                     }
+                };
+                this.currentOptions = {
+                    color: this.options.color
                 };
                 this.attack = {
                     time: this.options.attack.startTime,
@@ -629,6 +546,12 @@ window.onload = function() {
                 }
             }
 
+            setSkin(src) {
+                const image = new Image(800, 500);
+                image.src = src;
+                this.skin = image;
+            }
+
             getName() {
                 return this.name
             }
@@ -640,6 +563,7 @@ window.onload = function() {
             setState(state, params) {
                 switch (state) {
                     case 'attack':
+                        console.log('attack state, ', this.index);
                         this.attack = {
                             time: this.options.attack.startTime,
                             params: params,
@@ -647,6 +571,7 @@ window.onload = function() {
                         };
                         break;
                     case 'endAttack':
+                        console.log('end attack state, ', this.index);
                         this.attack.time = 0;
                         this.attack.dir = -1;
                         break;
@@ -656,6 +581,7 @@ window.onload = function() {
             reset() {
                 this.hp = this.maxhp;
                 this.mana = this.maxhp;
+                this.currentOptions.color = this.options.color;
             }
 
             updateHealth(add) {
@@ -666,6 +592,92 @@ window.onload = function() {
                 this.hp = value;
             }
         }
+
+        class Engine {
+            constructor() {
+                this.game = new Game({
+                    player1: new Player({
+                        name: 'no name',
+                        skin: '/static/img/skins/1.jpg',
+                        index: 1
+                    }),
+                    player2: new Player({
+                        name: 'no name',
+                        skin: '/static/img/skins/2.jpg',
+                        index: 2
+                    })});
+
+                this.active = false;
+                this.roomId = null;
+
+                document.addEventListener('keydown', (event) => {
+                    // console.log(event.code);
+                    this.makeTurn(event.code);
+                });
+
+                window.onblur = () => {
+                    this.pauseGame();
+                };
+
+                window.onblur = () => {
+                    this.continueGame();
+                };
+            }
+
+            // setName(name) {
+            //     this.name = name;
+            // }
+
+            setRoomId(id) {
+                this.roomId = id;
+            }
+
+            startGame(myPlayerIndex, roomId) {
+                this.game.start(myPlayerIndex, roomId);
+
+                if (!this.active) {
+                    this.run();
+                    this.active = true;
+                }
+            }
+
+            makeTurn(code) {
+                if (this.active) {
+                    this.game.makeTurn(code);
+                }
+            }
+
+            pauseGame() {
+                this.emitToRoom('gamePlayersStatus', {status: false});
+            }
+
+            continueGame() {
+                this.emitToRoom('gamePlayersStatus', {status: true});
+            }
+
+            run() {
+                const frame = () => {
+                    this.game.update();
+                    this.game.render();
+
+                    window.requestAnimationFrame(frame);
+                };
+
+                frame();
+            }
+
+            emitToRoom(url, params) {
+                if (this.roomId) {
+                    const data = {
+                        roomId: this.roomId,
+                        ...params
+                    };
+                    socket.emit(url, data);
+                }
+            }
+        }
+
+        const engine = new Engine();
 
     })()
 };
