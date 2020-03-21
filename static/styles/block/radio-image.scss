@@ -1,0 +1,17 @@
+.radio-image {
+    display: flex;
+
+    input {
+        display: none;
+    }
+
+    img {
+        border: 2px solid transparent;
+    }
+
+    input:checked {
+        & + img {
+            border-color: #92ff2f;
+        }
+    }
+}

@@ -1,0 +1,7 @@
+{
+"version": 3,
+"mappings": "AACI,cAAW;EACP,OAAO,EAAE,IAAI",
+"sources": ["rooms.scss"],
+"names": [],
+"file": "rooms.css"
+}

@@ -1,0 +1,16 @@
+.room {
+    &__bg-list {
+        display: flex;
+        flex-wrap: wrap;
+        margin-left: -10px;
+    }
+
+    &__bg {
+        margin-left: 8px;
+        margin-bottom: 8px;
+
+        img {
+            max-height: 80px;
+        }
+    }
+}

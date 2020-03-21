@@ -29,9 +29,11 @@ window.onload = function() {
         // создание комнаты
         elements.formCreateRoom.onsubmit = function(e) {
             e.preventDefault();
-            const roomId = e.target.elements[0].value;
+            const data = new FormData(e.target);
+            const roomId = data.get('room_id');
+            const bgIndex = data.get('room_bg');
             if (roomId) {
-                socket.emit('createRoom', { roomId, name });
+                socket.emit('createRoom', { roomId, bgIndex, name });
                 elements.gameContainer.classList.add('active');
             }
         };
@@ -58,7 +60,9 @@ window.onload = function() {
         socket.on('startGame', (data) => {
             renderGame(data);
 
+            engine.setBackgroundIndex(data.bgIndex);
             engine.setRoomId(data.roomId);
+
             engine.startGame(data.playerIndex, data.player1.name, data.player2.name);
         });
 
@@ -112,19 +116,16 @@ window.onload = function() {
                 this.ctx = this.canvas.getContext('2d');
                 this.gameWidth = this.canvas.width;
                 this.gameHeight = this.canvas.height;
-                // this.player1 = params.player1;
-                // this.player2 = params.player2;
-                // this.players = [this.player1, this.player2];
                 this.turns = 0;
                 this.turnTimer = null;
                 this.playerSettings = {
                     size: {
                         x: 150,
-                        y: 250
+                        y: 200
                     },
                     position: {
                         x: 50,
-                        y: 180
+                        y: 190
                     },
                     color: '#fff',
                     health: {
@@ -141,16 +142,16 @@ window.onload = function() {
 
                 // sockets
                 socket.on('gameChangeTurn', (data) => {
-                    // clearTimeout(this.turnTimer);
-                    this.turns += 1;
                     console.log('socket change turn, ', this.turns);
-                    const enemyAttack = this.currentPlayer.controls[data.code];
-                    this.currentPlayer.setState('attack', enemyAttack);
+
+                    const enemyAttack = this.opponentPlayer.controls[data.code];
+                    this.prepareAttack(enemyAttack, this.opponentPlayer);
+
                     if (this.turns >= 2) { // подсчет
                         console.log('turns >= 2');
                     } else {
                         console.log('socket change turn -> change turn');
-                        this.changeTurn();
+                        this.changeTurn(this.opponentPlayer, this.myPlayer);
                         this.turnTimer = setTimeout(() => {
                             this.makeTurn('KeyL', true);
                         }, 1500);
@@ -169,14 +170,19 @@ window.onload = function() {
                     });
                 });
 
+                socket.on('gameOpponentAbilities', (data) => {
+                    console.log('socket gameOpponentAbilities');
+                    console.log(data.abilities)
+                    this.opponentPlayer.parseAbilities(data.abilities);
+                });
+
                 socket.on('gameEndTurn', () => {
                     console.log('socket gameEndTurn');
-                    this.turns = 0;
-                    this.checkWinner();
+                    this.round();
                 });
             }
 
-            start(myPlayerIndex, name1, name2) {
+            start(myPlayerIndex, name1, name2, params) {
                 this.turns = 0;
                 this.player1 = new Player({
                     name: name1,
@@ -192,47 +198,75 @@ window.onload = function() {
                 this.setMyPlayer(myPlayerIndex);
                 this.currentPlayer = this.player1;
                 this.currentPlayer.currentOptions.color = 'aqua';
+                this.background = document.querySelector(`.game-bg-${params.bgIndex}`);
             }
 
             setMyPlayer(index) {
                 this.myPlayer = index === 1 ? this.player1 : this.player2;
+                this.opponentPlayer = index === 1 ? this.player2 : this.player1;
             }
 
-            makeTurn(code, access = false) {
+            makeTurn(code) {
                 // debug info
                 if (code === 'KeyM') {
                     console.log(this);
                     return;
                 }
 
-                if (this.isTurningPlayer() && this.turns < 2 || access) {
+                if (this.isTurningPlayer() && this.turns < 2) {
                     console.log('make turn player', this.currentPlayer.index);
-                    const attack = this.currentPlayer.controls[code];
-                    if (!attack) return;
+                    const attack = this.myPlayer.controls[code];
+
+                    if (!attack || this.myPlayer.energy < attack.energy) return;
+                    if (attack.mana && !this.checkAbilityRequirements(attack, this.myPlayer)) {
+                        return;
+                    } else {
+                        this.myPlayer.prepareAbility(attack);
+                    }
 
                     clearTimeout(this.turnTimer);
-                    this.currentPlayer.setState('attack', attack);
-                    this.turns += 1;
+                    this.prepareAttack(attack, this.myPlayer);
+
                     engine.emitToRoom('gameChangeTurn', {attackCode: code});
 
                     if (this.turns >= 2) { // подсчет
                         this.endTurns();
                     } else {
-                        this.changeTurn();
-                        // this.turnTimer = setTimeout(() => {
-                        //     this.makeTurn('KeyL', true);
-                        // }, 1500);
+                        this.changeTurn(this.myPlayer, this.opponentPlayer);
                     }
                 } else {
                     // console.log('cant make turn');
                 }
             }
 
-            changeTurn() {
+            checkAbilityRequirements(attack, player) {
+                if (player.mana < attack.mana) {
+                    return false;
+                }
+                if (attack.turns && this.turns !== attack.turns) {
+                    return false;
+                }
+                return true;
+            }
+
+            prepareAttack(attack, player) {
+                this.turns += 1;
+                player.setState('attack', attack);
+                player.energy -= attack.energy;
+                if (attack.mana) {
+                    player.mana -= attack.mana;
+                }
+                player.updateState();
+            }
+
+            changeTurn(currentPlayer, otherPlayer) {
                 console.log('change turn, turns: ', this.turns);
-                this.currentPlayer.currentOptions.color = this.currentPlayer.options.color;
-                this.currentPlayer = this.currentPlayer === this.player1 ? this.player2 : this.player1;
-                this.currentPlayer.currentOptions.color = 'aqua';
+                // this.currentPlayer.currentOptions.color = this.currentPlayer.options.color;
+                // this.currentPlayer = this.currentPlayer === this.player1 ? this.player2 : this.player1;
+                // this.currentPlayer.currentOptions.color = 'aqua';
+                currentPlayer.currentOptions.color = currentPlayer.options.color;
+                this.currentPlayer = otherPlayer;
+                otherPlayer.currentOptions.color = 'aqua';
             }
 
             endTurns() {
@@ -246,12 +280,18 @@ window.onload = function() {
                         console.log('send end turn');
                         engine.emitToRoom('gameEndAttack');
                         setTimeout(() => {
-                            this.turns = 0;
-                            this.checkWinner();
+                            this.round();
                             engine.emitToRoom('gameEndTurn');
                         }, 600);
                     }, 600);
                 }, 1000);
+            }
+
+            round() {
+                this.turns = 0;
+                this.myPlayer.updateAbilities();
+                this.checkWinner();
+                engine.emitToRoom('gameOpponentAbilities', {abilities: this.myPlayer.getAbilities()});
             }
 
             calculateDamage(attack1, attack2) {
@@ -264,12 +304,14 @@ window.onload = function() {
                         [player1, player2] = [player2, player1];
                     }
                     if (attack1) {
-                        for (let aa = 0; aa < attack1.attackArea.length; aa++) { // удар в голову [0,1]
+                        for (let aa = 0; aa < attack1.attackArea.length; aa++) {
                             if (attack1.attackArea[aa] === attack2.position) {
                                 if (attack2.blockType && attack2.blockType === attack1.attackType) {
-                                    player2.updateHealth(Math.floor((-attack1.damage[aa] + (attack1.damage[aa] * attack2.blockPercentage / 100))));
+                                    const damage = Math.max(0, Math.floor(((-attack1.damage[aa]) + (attack1.damage[aa] * attack2.blockPercentage / 100))));
+                                    player2.updateHealth(damage);
                                 } else {
-                                    player2.updateHealth(Math.floor(-attack1.damage[aa]));
+                                    const armor = attack1.damage[aa] * player2.armor / 100;
+                                    player2.updateHealth(Math.floor(-attack1.damage[aa] + armor));
                                 }
                                 break;
                             }
@@ -327,8 +369,7 @@ window.onload = function() {
             }
 
             drawBackground(ctx) {
-                const img = document.getElementById("bg");
-                ctx.drawImage(img, 0, 0);
+                ctx.drawImage(this.background, 0, 0);
             }
 
             drawText(ctx) {
@@ -353,6 +394,10 @@ window.onload = function() {
                             barX: 0,
                             attackDir: 1
                         });
+                        this.drawCells(ctx, {
+                            x: player.position.x,
+                            y: player.position.y + player.size.y
+                        }, currentPlayer)
                     } else { // player 2
                         this.drawPlayer(ctx, {
                             player: currentPlayer,
@@ -361,6 +406,10 @@ window.onload = function() {
                             barX: (this.gameWidth - player.position.x - player.size.x) - player.position.x,
                             attackDir: -1
                         });
+                        this.drawCells(ctx, {
+                            x: this.gameWidth - player.position.x - player.size.x,
+                            y: player.position.y + player.size.y
+                        }, currentPlayer)
                     }
                 }
             }
@@ -380,7 +429,7 @@ window.onload = function() {
 
                 const attackPosition = getAttackPosition[currentPlayer.index]({
                     x: params.posX,
-                    y: player.position.y,
+                    y: player.position.y - 10,
                     width: player.size.x,
                     attackStartTime,
                     currentAttackTime: currentPlayer.attack.time
@@ -408,54 +457,78 @@ window.onload = function() {
                 ctx.strokeStyle = currentPlayer.currentOptions.color;
                 ctx.rect(params.posX, player.position.y, player.size.x, player.size.y);
                 ctx.stroke();
+
                 this.drawBars(ctx, params.barX, currentPlayer);
+            }
+
+            drawCells(ctx, position, currentPlayer) {
+                Object.keys(currentPlayer.abilities).forEach((e, idx) => {
+                    ctx.drawImage(currentPlayer.abilities[e].img, position.x + (idx * 55), position.y + 15, 40, 40);
+                });
+
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = "1";
+                    ctx.rect(position.x + (i * 55), position.y + 15, 40, 40);
+                    ctx.stroke();
+                }
             }
 
             drawBars(ctx, offsetX, currentPlayer) {
                 const player = this.playerSettings;
+                const barDistance = 31;
+                const startPositionY = player.position.y - 5;
 
-                const healthPosition = {x: offsetX + player.position.x, y: player.position.y - 70};
-                const manaPosition = {x: offsetX + player.position.x, y: player.position.y - 36};
-
-                const healthPercent = currentPlayer.hp / currentPlayer.maxhp;
+                const healthPosition = {x: offsetX + player.position.x, y: startPositionY - barDistance * 3};
+                const energyPosition = {x: offsetX + player.position.x, y: startPositionY - barDistance * 2};
+                const manaPosition = {x: offsetX + player.position.x, y: startPositionY - barDistance};
 
                 ctx.textAlign = "left";
 
-                // health
+                this.drawBar(ctx, healthPosition,
+                    {
+                        firstColor: 'red',
+                        mainColor: '#078c07',
+                        player, currentPlayer,
+                        values: [currentPlayer.hp, currentPlayer.maxhp]
+                    });
+                this.drawBar(ctx, energyPosition,
+                    {
+                        firstColor: '#ddd',
+                        mainColor: '#38a0d2',
+                        player, currentPlayer,
+                        values: [currentPlayer.energy, currentPlayer.maxenergy]
+                    });
+                this.drawBar(ctx, manaPosition,
+                    {
+                        firstColor: '#ddd',
+                        mainColor: '#19287b',
+                        player, currentPlayer,
+                        values: [currentPlayer.mana, currentPlayer.maxmana]
+                    });
+            }
+
+            drawBar(ctx, position, params) {
                 ctx.beginPath();
-                ctx.fillStyle = 'red';
-                ctx.rect(healthPosition.x, healthPosition.y, player.size.x, player.health.size);
+                ctx.fillStyle = params.firstColor;
+                ctx.rect(position.x, position.y, params.player.size.x, params.player.health.size);
                 ctx.fill();
 
                 ctx.beginPath();
-                ctx.fillStyle = player.health.color;
-                ctx.rect(healthPosition.x, healthPosition.y, player.size.x * healthPercent, player.health.size);
+                ctx.fillStyle = params.mainColor;
+                ctx.rect(position.x, position.y, Math.max(0, params.player.size.x * (params.values[0] / params.values[1])), params.player.health.size);
                 ctx.fill();
 
                 ctx.font = "12px Arial";
                 ctx.fillStyle = "#fff";
-                ctx.fillText(currentPlayer.hp + "/" + currentPlayer.maxhp, healthPosition.x + 5, healthPosition.y + 16);
+                ctx.fillText(params.values[0] + "/" + params.values[1], position.x + 5, position.y + 16);
 
                 ctx.beginPath();
                 ctx.strokeStyle = '#fff';
                 ctx.lineWidth = "1";
-                ctx.rect(healthPosition.x, healthPosition.y, player.size.x, player.health.size);
+                ctx.rect(position.x, position.y, params.player.size.x, params.player.health.size);
                 ctx.stroke();
-
-                ctx.beginPath();
-                ctx.fillStyle = player.magic.color;
-                ctx.rect(manaPosition.x, manaPosition.y, player.size.x, player.magic.size);
-                ctx.fill();
-
-                ctx.beginPath();
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = "1";
-                ctx.rect(manaPosition.x, manaPosition.y, player.size.x, player.magic.size);
-                ctx.stroke();
-
-                ctx.font = "12px Arial";
-                ctx.fillStyle = "#fff";
-                ctx.fillText(currentPlayer.mana + "/" + currentPlayer.maxmana, manaPosition.x + 5, manaPosition.y + 16);
             }
         }
 
@@ -464,11 +537,18 @@ window.onload = function() {
                 this.name = options.name;
                 this.setSkin(options.skin);
                 this.wins = 0;
-                this.maxhp = 100;
+                this.maxhp = 150;
                 this.hp = this.maxhp;
-                this.maxmana = 100;
+                this.maxmana = 50;
                 this.mana = this.maxmana;
+                this.maxenergy = 80;
+                this.manaRegen = 5;
+                this.energy = this.maxenergy;
+                this.energyRegen = 10;
+                this.armor = 0;
                 this.index = options.index;
+                this.preparedAbilities = [];
+                this.abilities = {};
                 this.options = {
                     color: '#fff',
                     attack: {
@@ -488,17 +568,29 @@ window.onload = function() {
                         name: ''
                     }
                 };
+                this.passiveAbilities = {
+                    'enchanted-steel': {
+                        keyName: 'enchanted-steel',
+                        iconSrc: 'enchanted-steel.jpg',
+                        turns: 3,
+                        effects: {
+                            armor: 50
+                        }
+                    }
+                };
                 this.controls = {
                     'KeyW': {
                         damage: [0],
                         attackArea: [-1],
                         position: 0,
+                        energy: -10,
                         name: 'Прыжок'
                     },
                     'KeyS': {
                         damage: [0],
                         attackArea: [-1],
                         position: 2,
+                        energy: -10,
                         name: 'Присед'
                     },
                     'KeyA': {
@@ -506,6 +598,7 @@ window.onload = function() {
                         attackArea: [0],
                         attackType: 1,
                         position: 0,
+                        energy: 20,
                         name: 'Захват в прыжке'
                     },
                     'KeyF': {
@@ -513,6 +606,7 @@ window.onload = function() {
                         attackArea: [0, 1],
                         attackType: 1,
                         position: 1,
+                        energy: 20,
                         name: 'Удар в голову'
                     },
                     'KeyG': {
@@ -520,6 +614,7 @@ window.onload = function() {
                         attackArea: [1, 2],
                         attackType: 1,
                         position: 1,
+                        energy: 20,
                         name: 'Удар с ноги'
                     },
                     'KeyH': {
@@ -527,6 +622,7 @@ window.onload = function() {
                         attackArea: [1, 0],
                         attackType: 1,
                         position: 0,
+                        energy: 20,
                         name: 'Удар в прыжке'
                     },
                     'KeyJ': {
@@ -534,22 +630,16 @@ window.onload = function() {
                         attackArea: [1, 2],
                         attackType: 3,
                         position: 2,
+                        energy: 20,
                         name: 'Подножка'
                     },
-                    // 'KeyZ': {
-                    //     damage: [0],
-                    //     attackArea: [-1],
-                    //     position: 1,
-                    //     blockType: 1,
-                    //     blockPercentage: 100,
-                    //     name: 'Верхний блок'
-                    // },
                     'KeyZ': {
                         damage: [0],
                         attackArea: [-1],
                         position: 1,
                         blockType: 1,
                         blockPercentage: 100,
+                        energy: -10,
                         name: 'Блок'
                     },
                     'KeyX': {
@@ -558,14 +648,37 @@ window.onload = function() {
                         position: 2,
                         blockType: 3,
                         blockPercentage: 100,
+                        energy: -10,
                         name: 'Нижний блок'
                     },
                     'KeyL': {
                         damage: [0],
                         attackArea: [-1],
                         position: 1,
+                        energy: -10,
                         name: 'Ничего не делать'
-                    }
+                    },
+                    'KeyQ': {
+                        damage: [50],
+                        attackArea: [1],
+                        attackType: 1,
+                        position: 1,
+                        energy: 20,
+                        mana: 35,
+                        turns: 0,
+                        type: 'active',
+                        name: 'Силовой удар'
+                    },
+                    'KeyE': {
+                        damage: [0],
+                        attackArea: [-1],
+                        position: 1,
+                        energy: 10,
+                        mana: 35,
+                        type: 'passive',
+                        options: this.passiveAbilities['enchanted-steel'],
+                        name: 'Зачарованная сталь'
+                    },
                 }
             }
 
@@ -603,8 +716,89 @@ window.onload = function() {
 
             reset() {
                 this.hp = this.maxhp;
-                this.mana = this.maxhp;
+                this.mana = this.maxmana;
+                this.energy = this.maxenergy;
                 this.currentOptions.color = this.options.color;
+            }
+
+            updateState() {
+                this.energy = Math.min(this.energy + this.energyRegen, this.maxenergy);
+                this.mana = Math.min(this.mana + this.manaRegen, this.maxmana);
+            }
+
+            prepareAbility(attack) {
+                if (attack.type === 'passive') {
+                    this.preparedAbilities.push(attack);
+                }
+            }
+
+            applyAbility(ability) {
+                const img = new Image;
+                img.src = '/static/img/abilities/' + ability.options.iconSrc;
+
+                this.abilities[ability.options.keyName] = {
+                    turns: ability.options.turns,
+                    img,
+                    iconSrc: ability.options.iconSrc,
+                    effects: {...ability.options.effects}
+                };
+
+                Object.keys(ability.options.effects).forEach(key => {
+                    this[key] += ability.options.effects[key];
+                })
+            }
+
+            removeAbility(ability) {
+                const thisAbility = this.abilities[ability];
+                Object.keys(thisAbility.effects).forEach(key => {
+                    this[key] -= thisAbility.effects[key]
+                });
+                delete this.abilities[ability];
+            }
+
+            updateAbilities() {
+                Object.keys(this.abilities).forEach(key => {
+                    const turns = this.abilities[key].turns -= 1;
+                    if (turns <= 0) {
+                        this.removeAbility(key);
+                    }
+                });
+
+                this.preparedAbilities.forEach(ability => {
+                    this.applyAbility(ability);
+                });
+
+                this.preparedAbilities = [];
+            }
+
+            getAbilities() {
+                return Object.keys(this.abilities);
+            }
+
+            parseAbilities(abilities) {
+                abilities.forEach(abilityName => {
+                    if (!this.abilities.hasOwnProperty(abilityName)) {
+                        const ability = this.passiveAbilities[abilityName];
+                        const img = new Image;
+                        img.src = '/static/img/abilities/' + ability.iconSrc;
+                        Object.keys(ability.effects).forEach(key => {
+                            this[key] += ability.effects[key];
+                        });
+                        this.abilities[abilityName] = {
+                            img
+                        }
+                    }
+                });
+
+                Object.keys(this.abilities).forEach(abilityName => {
+                    if (!abilities.includes(abilityName)) {
+                        const ability = this.passiveAbilities[abilityName];
+                        Object.keys(ability.effects).forEach(key => {
+                            this[key] -= ability.effects[key];
+                        });
+                        delete this.abilities[abilityName];
+                    }
+                })
             }
 
             updateHealth(add) {
@@ -640,12 +834,16 @@ window.onload = function() {
             //     this.name = name;
             // }
 
+            setBackgroundIndex(index) {
+                this.bgIndex = index;
+            }
+
             setRoomId(id) {
                 this.roomId = id;
             }
 
             startGame(myPlayerIndex, name1, name2) {
-                this.game.start(myPlayerIndex, name1, name2);
+                this.game.start(myPlayerIndex, name1, name2, {bgIndex: this.bgIndex});
 
                 if (!this.active) {
                     this.run();

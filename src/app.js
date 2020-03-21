@@ -71,6 +71,7 @@ io.on('connection', function(socket) {
 
     socket.on('createRoom', function(data) {
         rooms[data.roomId] = {
+            bgIndex: data.bgIndex,
             admin: {
                 name: data.name,
                 id: socket.id
@@ -92,6 +93,7 @@ io.on('connection', function(socket) {
         const gameData = {
             status: 'Игра',
             roomId: data.roomId,
+            bgIndex: rooms[data.roomId].bgIndex,
             player1: {
                 name: rooms[data.roomId].admin.name,
             },
@@ -116,6 +118,10 @@ io.on('connection', function(socket) {
 
     socket.on('gameEndAttack', function(data) {
         socket.broadcast.to(getRoom(data.roomId)).emit('gameEndAttack', {} );
+    });
+
+    socket.on('gameOpponentAbilities', function(data) {
+        socket.broadcast.to(getRoom(data.roomId)).emit('gameOpponentAbilities', {abilities: data.abilities} );
     });
 
     socket.on('gameEndTurn', function(data) {

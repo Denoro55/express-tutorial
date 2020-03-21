@@ -33,6 +33,68 @@
 .player-info.left .player-info__status-icon {
   background-color: black; }
 
+.room__bg-list {
+  display: flex;
+  flex-wrap: wrap;
+  margin-left: -10px; }
+.room__bg {
+  margin-left: 8px;
+  margin-bottom: 8px; }
+  .room__bg img {
+    max-height: 80px; }
+
+.radio-image {
+  display: flex; }
+  .radio-image input {
+    display: none; }
+  .radio-image img {
+    border: 2px solid transparent; }
+  .radio-image input:checked + img {
+    border-color: #92ff2f; }
+
+.game {
+  width: 700px; }
+
+.game__players {
+  display: none;
+  padding-bottom: 15px;
+  justify-content: space-between; }
+
+.game__engine {
+  display: none; }
+
+.game.active .game__room {
+  display: none; }
+
+.game.active .game__engine {
+  display: block; }
+
+.game.play .game__players {
+  display: flex; }
+
+.player-info {
+  display: flex; }
+
+.player-info__status {
+  display: flex;
+  align-items: center;
+  margin-left: 10px; }
+
+.player-info__status-icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: green; }
+
+.player-info.off .player-info__status-icon {
+  background-color: red; }
+
+.player-info.left .player-info__status-icon {
+  background-color: black; }
+
+.room__list-bg {
+  display: flex; }
+
 body {
   font-family: Arial, sans-serif;
   font-size: 14px;
@@ -42,10 +104,12 @@ body {
   display: flex;
   padding-bottom: 15px;
   border-bottom: 1px solid #ddd; }
-  .header a, .header form {
-    margin-left: 15px; }
-    .header a:first-child, .header form:first-child {
-      margin-left: 0; }
+
+.header a, .header form {
+  margin-left: 15px; }
+
+.header a:first-child, .header form:first-child {
+  margin-left: 0; }
 
 .ml-2 {
   margin-left: 10px; }
@@ -67,13 +131,18 @@ body {
   padding-top: 5px;
   list-style: none;
   padding-left: 0; }
-  .room-list li {
-    margin-right: 10px; }
+
+.room-list li {
+  margin-right: 10px; }
 
 #game {
   background-color: black; }
 
 .sprites {
   display: none; }
+
+/*# sourceMappingURL=style.scss.map */
+/*# sourceMappingURL=style.scss.map */
+/*# sourceMappingURL=style.scss.map */
 
 /*# sourceMappingURL=style.css.map */
