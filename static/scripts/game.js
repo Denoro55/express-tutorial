@@ -315,7 +315,7 @@ window.onload = function() {
                 const keys = Object.keys(attacks);
                 let filteredKeys = keys.filter(k => k !== 'KeyL');
 
-                if (this.difficult === 2) {
+                if (this.difficult >= 2) {
                     filteredKeys = filteredKeys.filter(k => k !== 'KeyW' && k !== 'KeyS');
                     if (this.turns === 0 && this.currentPlayer.energy >= 20) { // ход первым
                         filteredKeys = filteredKeys.filter(k => k !== 'KeyZ' && k !== 'KeyX' && k !== 'KeyA');
