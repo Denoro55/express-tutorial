@@ -10,6 +10,14 @@ const NotFoundError = require('./errors/NotFoundError');
 const config = require('../config');
 const encrypt = require('./helpers/encrypt');
 
+// const mongoose = require('mongoose');
+// mongoose.connect('mongodb://den55:12345a@ds125723.mlab.com:25723/express-game', {useNewUrlParser: true, useUnifiedTopology: true});
+
+// const Cat = mongoose.model('Cat', { name: String });
+//
+// const kitty = new Cat({ name: 'Zildjian' });
+// kitty.save().then(() => console.log('meow'));
+
 // entities
 const Guest = require('./entities/Guest');
 const User = require('./entities/User');

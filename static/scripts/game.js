@@ -140,85 +140,37 @@ window.onload = function() {
         };
 
         class Game {
-            constructor() {
+            static playerSettings = {
+                size: {
+                    x: 150,
+                    y: 200
+                },
+                position: {
+                    x: 50,
+                    y: 190
+                },
+                color: '#fff',
+                health: {
+                    color: 'green',
+                    max: 100,
+                    size: 23
+                },
+                magic: {
+                    color: 'blue',
+                    max: 100,
+                    size: 23
+                }
+            };
+
+            constructor(myPlayerIndex, name1, name2, params) {
                 this.canvas = document.querySelector('#game');
                 this.ctx = this.canvas.getContext('2d');
                 this.gameWidth = this.canvas.width;
                 this.gameHeight = this.canvas.height;
                 this.turns = 0;
                 this.turnTimer = null;
-                this.singleMode = false;
-                this.difficult = 1;
-                this.playerSettings = {
-                    size: {
-                        x: 150,
-                        y: 200
-                    },
-                    position: {
-                        x: 50,
-                        y: 190
-                    },
-                    color: '#fff',
-                    health: {
-                        color: 'green',
-                        max: 100,
-                        size: 23
-                    },
-                    magic: {
-                        color: 'blue',
-                        max: 100,
-                        size: 23
-                    }
-                };
-
-                // sockets
-                socket.on('gameChangeTurn', (data) => {
-                    console.log('socket change turn, ', this.turns);
-
-                    const enemyAttack = this.opponentPlayer.controls[data.code];
-                    this.prepareAttack(enemyAttack, this.opponentPlayer);
-
-                    if (this.turns >= 2) { // подсчет
-                        console.log('turns >= 2');
-                    } else {
-                        console.log('socket change turn -> change turn');
-                        this.changeTurn(this.opponentPlayer, this.myPlayer);
-                        this.turnTimer = setTimeout(() => {
-                            this.makeTurn('KeyL', true);
-                        }, 1500);
-                    }
-                });
-
-                socket.on('gameEndCalculating', (data) => {
-                    this.player1.setHealth(data.health1);
-                    this.player2.setHealth(data.health2);
-                });
-
-                socket.on('gameEndAttack', () => {
-                    console.log('socket gameEndAttack');
-                    this.players.forEach(player => {
-                        player.setState('endAttack', player.attack.params);
-                    });
-                });
-
-                socket.on('gameOpponentAbilities', (data) => {
-                    console.log('socket gameOpponentAbilities');
-                    console.log(data.abilities);
-                    this.opponentPlayer.parseAbilities(data.abilities);
-                });
-
-                socket.on('gameEndTurn', () => {
-                    console.log('socket gameEndTurn');
-                    this.round();
-                });
-            }
-
-            start(myPlayerIndex, name1, name2, params) {
-                if (params.singleMode) {
-                    this.singleMode = params.singleMode;
-                    this.difficult = Number(params.difficult);
-                }
-                this.turns = 0;
+                this.singleMode = params.singleMode || false;
+                this.difficult = Number(params.difficult) || 1;
                 this.player1 = new Player({
                     name: name1,
                     skin: '/static/img/skins/1.jpg',
@@ -233,15 +185,66 @@ window.onload = function() {
                 this.setMyPlayer(myPlayerIndex);
                 this.currentPlayer = this.player1;
                 this.currentPlayer.currentOptions.color = 'aqua';
+                this.setBackground(params.bgIndex);
+            }
 
-                const background = new Image();
-                background.src = `/static/img/bg/${params.bgIndex}.jpg`;
-                this.background = background;
+            onSocketEvent(name, data) {
+                switch (name) {
+                    case 'gameChangeTurn':
+                        console.log('socket change turn, ', this.turns);
+
+                        const enemyAttack = this.opponentPlayer.controls[data.code];
+                        this.prepareAttack(enemyAttack, this.opponentPlayer);
+
+                        if (this.turns >= 2) { // подсчет
+                            console.log('turns >= 2');
+                        } else {
+                            console.log('socket change turn -> change turn');
+                            this.changeTurn(this.opponentPlayer, this.myPlayer);
+                            this.turnTimer = setTimeout(() => {
+                                this.makeTurn('KeyL', true);
+                            }, 1500);
+                        }
+                        break;
+
+                    case 'gameEndCalculating':
+                        this.player1.setHealth(data.health1);
+                        this.player2.setHealth(data.health2);
+                        break;
+
+                    case 'gameEndAttack':
+                        console.log('socket gameEndAttack');
+
+                        socket.on('gameEndAttack', () => {
+                            console.log('socket gameEndAttack');
+                            this.players.forEach(player => {
+                                player.setState('endAttack', player.attack.params);
+                            });
+                        });
+                        break;
+
+                    case 'gameOpponentAbilities':
+                        console.log('socket gameOpponentAbilities');
+                        console.log(data.abilities);
+                        this.opponentPlayer.parseAbilities(data.abilities);
+                        break;
+
+                    case 'gameEndTurn':
+                        console.log('socket gameEndTurn');
+                        this.round();
+                        break;
+                }
             }
 
             setMyPlayer(index) {
                 this.myPlayer = index === 1 ? this.player1 : this.player2;
                 this.opponentPlayer = index === 1 ? this.player2 : this.player1;
+            }
+
+            setBackground(index) {
+                const background = new Image();
+                background.src = `/static/img/bg/${index}.jpg`;
+                this.background = background;
             }
 
             makeTurn(code) {
@@ -301,6 +304,7 @@ window.onload = function() {
 
             getCounterattack() {
                 const attacks = this.myPlayer.attack.params.counterattack;
+                if (!attacks) return false;
                 return attacks[Math.floor(Math.random() * attacks.length)];
             }
 
@@ -523,7 +527,7 @@ window.onload = function() {
             }
 
             drawPlayers(ctx) {
-                const player = this.playerSettings;
+                const player = this.constructor.playerSettings;
 
                 for (let i = 0; i < 2; i++) {
                     const currentPlayer = i === 0 ? this.player1 : this.player2;
@@ -556,7 +560,7 @@ window.onload = function() {
             }
 
             drawPlayer(ctx, params) {
-                const player = this.playerSettings;
+                const player = this.constructor.playerSettings;
                 const currentPlayer = params.player;
 
                 // attack
@@ -617,7 +621,7 @@ window.onload = function() {
             }
 
             drawBars(ctx, offsetX, currentPlayer) {
-                const player = this.playerSettings;
+                const player = this.constructor.playerSettings;
                 const barDistance = 31;
                 const startPositionY = player.position.y - 5;
 
@@ -860,6 +864,7 @@ window.onload = function() {
                         energy: 10,
                         mana: 35,
                         type: 'passive',
+                        counterattack: ['KeyJ', 'KeyH', 'KeyF'],
                         options: this.passiveAbilities['enchanted-steel'],
                         name: 'Зачарованная сталь'
                     },
@@ -997,8 +1002,8 @@ window.onload = function() {
 
         class Engine {
             constructor() {
-                this.game = new Game();
-                this.active = false;
+                this.game = null;
+                this.play = false;
                 this.roomId = null;
 
                 document.addEventListener('keydown', (event) => {
@@ -1013,20 +1018,41 @@ window.onload = function() {
                 window.onfocus = () => {
                     this.continueGame();
                 };
+
+                // sockets
+                socket.on('gameChangeTurn', (data) => {
+                    this.game.onSocketEvent('gameChangeTurn', data);
+                });
+
+                socket.on('gameEndCalculating', (data) => {
+                    this.game.onSocketEvent('gameEndCalculating', data);
+                });
+
+                socket.on('gameEndAttack', () => {
+                    this.game.onSocketEvent('gameEndAttack');
+                });
+
+                socket.on('gameOpponentAbilities', (data) => {
+                    this.game.onSocketEvent('gameOpponentAbilities', data);
+                });
+
+                socket.on('gameEndTurn', () => {
+                    this.game.onSocketEvent('gameEndTurn');
+                });
             }
 
             startGame(myPlayerIndex, name1, name2, params) {
+                this.game = new Game(myPlayerIndex, name1, name2, params);
                 this.roomId = params.roomId;
-                this.game.start(myPlayerIndex, name1, name2, params);
 
-                if (!this.active) {
+                if (!this.play) {
                     this.run();
-                    this.active = true;
+                    this.play = true;
                 }
             }
 
             makeTurn(code) {
-                if (this.active) {
+                if (this.play) {
                     this.game.makeTurn(code);
                 }
             }
