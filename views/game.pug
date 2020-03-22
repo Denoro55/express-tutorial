@@ -3,21 +3,45 @@ extends ./layout/index
 block content
     .game
         .game__room
-            form#js-create-room.room
-                h3 1. Выберите фон
-                .room__bg-list
-                    each i in [1,2,3,4,5,6,7,8,9,10]
-                        .room__bg
-                            label.radio-image
-                                input(type="radio" value=`${i}` checked=i===1 name="room_bg")
-                                img.room__bg-img(src=`/static/img/bg/${i}.jpg` alt="")
-                .room__main
-                    h3 2. Создайте свою комнату
-                    input(type="number" name="room_id")
-                    input(type="submit" value="Создать комнату")
-            p Присодиняйтесь к уже созданным комнатам:
-            hr
-            ul.room-list
+
+            .game__multiplayer.game-section
+                h3 Игра по сети
+                form#js-create-room.room
+                    h4 1. Выберите фон
+                    .room__bg-list
+                        each i in [1,2,3,4,5,6,7,8,9,10]
+                            .room__bg
+                                label.radio-image
+                                    input(type="radio" value=`${i}` checked=i===1 name="room_bg")
+                                    img.room__bg-img(src=`/static/img/bg/${i}.jpg` alt="")
+                    .room__main
+                        h4 2. Создайте свою комнату
+                        input(type="number" name="room_id")
+                        input(type="submit" value="Создать комнату")
+                p Присодиняйтесь к уже созданным комнатам:
+                ul.room-list
+
+            .game__single.game-section
+                h3 Тренировка с ИИ
+                form#js-training-form.single
+                    .single__left
+                        select(name="difficult")
+                            each i, index in ['Легкий', 'Средний', 'Тяжелый']
+                                option(value=`${index + 1}`)= i
+                            option(disabled value=`${index + 1}`) Мастер
+                    .single__right.ml-2
+                        button(type="submit") Начать игру
+
+            .game__single.game-section
+                h3 Боссы
+                .single
+                    //.single__left
+                    //    form.js-single-form
+                    //        select
+                    //            each i in ['Чумной доктор']
+                    //                option(name=`${i}`)= i
+                    //.single__right.ml-2
+                    //    button Начать игру
 
         .game__engine
             h3.js-game-status Ожидание противника...
@@ -33,11 +57,7 @@ block content
                         .player-info__status
                             .player-info__status-icon
             .game
-                .game__left
-                    canvas#game(width="700" height="480")
-                    .sprites
-                        each i in [1,2,3,4,5,6,7,8,9,10]
-                            img(src=`/static/img/bg/${i}.jpg` alt="" class=`game-bg-${i}`)
+                canvas#game(width="700" height="480")
 
     script(src="/socket.io/socket.io.js")
 

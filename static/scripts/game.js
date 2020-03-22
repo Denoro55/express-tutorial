@@ -1,6 +1,5 @@
 window.onload = function() {
     (() => {
-        // const socket = io('https://fathomless-brushlands-15572.herokuapp.com/');
         const socket = io(window.location.host);
 
         // init
@@ -21,6 +20,7 @@ window.onload = function() {
             gameContainer: document.querySelector('.game'),
             roomsContainer: document.querySelector('.room-list'),
             formCreateRoom: document.getElementById('js-create-room'),
+            formTraining: document.getElementById('js-training-form'),
             gameStatus: document.querySelector('.js-game-status'),
             player1Info: document.querySelector('.js-player-info-1'),
             player2Info: document.querySelector('.js-player-info-2')
@@ -36,6 +36,36 @@ window.onload = function() {
                 socket.emit('createRoom', { roomId, bgIndex, name });
                 elements.gameContainer.classList.add('active');
             }
+        };
+
+        const mappingBotName = {
+            1: 'Легкий',
+            2: 'Средний',
+            3: 'Тяжелый'
+        };
+
+        // создание комнаты с ботом
+        elements.formTraining.onsubmit = function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const difficult = formData.get('difficult');
+            const botName = 'ИИ (' + mappingBotName[difficult] + ')';
+            const data = {
+                status: 'Игра',
+                playerIndex: 1,
+                player1: {
+                    name
+                },
+                player2: {
+                    name: botName
+                }
+            };
+            renderGame(data);
+            engine.startGame(1, name, botName, {
+                bgIndex: 1 + Math.floor(Math.random() * 9),
+                singleMode: true,
+                difficult
+            });
         };
 
         const updateRoomList = (rooms) => {
@@ -59,11 +89,10 @@ window.onload = function() {
 
         socket.on('startGame', (data) => {
             renderGame(data);
-
-            engine.setBackgroundIndex(data.bgIndex);
-            engine.setRoomId(data.roomId);
-
-            engine.startGame(data.playerIndex, data.player1.name, data.player2.name);
+            engine.startGame(data.playerIndex, data.player1.name, data.player2.name, {
+                bgIndex: data.bgIndex,
+                roomId: data.roomId
+            });
         });
 
         socket.on('gamePlayersStatus', function(data) {
@@ -118,6 +147,8 @@ window.onload = function() {
                 this.gameHeight = this.canvas.height;
                 this.turns = 0;
                 this.turnTimer = null;
+                this.singleMode = false;
+                this.difficult = 1;
                 this.playerSettings = {
                     size: {
                         x: 150,
@@ -172,7 +203,7 @@ window.onload = function() {
 
                 socket.on('gameOpponentAbilities', (data) => {
                     console.log('socket gameOpponentAbilities');
-                    console.log(data.abilities)
+                    console.log(data.abilities);
                     this.opponentPlayer.parseAbilities(data.abilities);
                 });
 
@@ -183,6 +214,10 @@ window.onload = function() {
             }
 
             start(myPlayerIndex, name1, name2, params) {
+                if (params.singleMode) {
+                    this.singleMode = params.singleMode;
+                    this.difficult = Number(params.difficult);
+                }
                 this.turns = 0;
                 this.player1 = new Player({
                     name: name1,
@@ -198,7 +233,10 @@ window.onload = function() {
                 this.setMyPlayer(myPlayerIndex);
                 this.currentPlayer = this.player1;
                 this.currentPlayer.currentOptions.color = 'aqua';
-                this.background = document.querySelector(`.game-bg-${params.bgIndex}`);
+
+                const background = new Image();
+                background.src = `/static/img/bg/${params.bgIndex}.jpg`;
+                this.background = background;
             }
 
             setMyPlayer(index) {
@@ -214,28 +252,105 @@ window.onload = function() {
                 }
 
                 if (this.isTurningPlayer() && this.turns < 2) {
-                    console.log('make turn player', this.currentPlayer.index);
-                    const attack = this.myPlayer.controls[code];
+                    console.log('make turn player', this.currentPlayer.index, this.singleMode);
 
-                    if (!attack || this.myPlayer.energy < attack.energy) return;
-                    if (attack.mana && !this.checkAbilityRequirements(attack, this.myPlayer)) {
-                        return;
-                    } else {
-                        this.myPlayer.prepareAbility(attack);
-                    }
+                    const attack = this.myPlayer.controls[code];
+                    if (!this.isAvailableAttack(attack, this.myPlayer)) return;
 
                     clearTimeout(this.turnTimer);
                     this.prepareAttack(attack, this.myPlayer);
 
-                    engine.emitToRoom('gameChangeTurn', {attackCode: code});
+                    this.emit('gameChangeTurn', { attackCode: code });
+                    this.endTurn();
 
-                    if (this.turns >= 2) { // подсчет
-                        this.endTurns();
+                } else {
+                    // console.log('cant make turn');
+                }
+            }
+
+            isAvailableAttack(attack, turningPlayer) {
+                if (!attack || turningPlayer.energy < attack.energy) return false;
+                if (attack.mana && !this.checkAbilityRequirements(attack, turningPlayer)) {
+                    return false;
+                } else {
+                    turningPlayer.prepareAbility(attack);
+                }
+                return true;
+            }
+
+            endTurn() {
+                if (this.turns >= 2) { // подсчет
+                    this.endTurns();
+                } else {
+                    if (this.singleMode) {
+                        this.changeTurn(this.currentPlayer);
+                        if (!this.isTurningPlayer()) {
+                            setTimeout(() => {
+                                this.makeAITurn();
+                            }, 500);
+                        } else {
+                            this.turnTimer = setTimeout(() => {
+                                this.makeTurn('KeyL');
+                            }, 1500);
+                        }
                     } else {
                         this.changeTurn(this.myPlayer, this.opponentPlayer);
                     }
-                } else {
-                    // console.log('cant make turn');
+                }
+            }
+
+            getCounterattack() {
+                const attacks = this.myPlayer.attack.params.counterattack;
+                return attacks[Math.floor(Math.random() * attacks.length)];
+            }
+
+            makeAITurn() {
+                let attempts = true;
+
+                const attacks = this.currentPlayer.controls;
+                const keys = Object.keys(attacks);
+                let filteredKeys = keys.filter(k => k !== 'KeyL');
+
+                if (this.difficult === 2) {
+                    filteredKeys = filteredKeys.filter(k => k !== 'KeyW' && k !== 'KeyS');
+                    if (this.turns === 0 && this.currentPlayer.energy >= 20) { // ход первым
+                        filteredKeys = filteredKeys.filter(k => k !== 'KeyZ' && k !== 'KeyX' && k !== 'KeyA');
+                    }
+                }
+
+                while (attempts) {
+                    let attackKey;
+                    attackKey = filteredKeys[Math.floor(Math.random() * filteredKeys.length)];
+
+                    if (this.difficult === 2) { // medium
+                        if (this.turns === 1 && this.currentPlayer.energy >= 20) { // ответный удар
+                            if (Math.random() < .35) {
+                                if (this.getCounterattack()) {
+                                    attackKey = this.getCounterattack();
+                                }
+                            }
+                        }
+                    } else if (this.difficult === 3) { // medium
+                        if (this.turns === 1 && this.currentPlayer.energy >= 20) { // ответный удар
+                            if (Math.random() < .8) {
+                                if (this.getCounterattack()) {
+                                    attackKey = this.getCounterattack();
+                                }
+                            }
+                        }
+                    }
+
+                    const attack = this.currentPlayer.controls[attackKey];
+                    // console.log(keys);
+
+                    if (this.isAvailableAttack(attack, this.currentPlayer)) {
+                        attempts = false;
+                        this.prepareAttack(attack, this.currentPlayer);
+                        this.endTurn();
+                    } else {
+                        console.log('try again');
+                        filteredKeys = filteredKeys.filter(k => k !== attackKey);
+                    }
                 }
             }
 
@@ -261,12 +376,14 @@ window.onload = function() {
 
             changeTurn(currentPlayer, otherPlayer) {
                 console.log('change turn, turns: ', this.turns);
-                // this.currentPlayer.currentOptions.color = this.currentPlayer.options.color;
-                // this.currentPlayer = this.currentPlayer === this.player1 ? this.player2 : this.player1;
-                // this.currentPlayer.currentOptions.color = 'aqua';
                 currentPlayer.currentOptions.color = currentPlayer.options.color;
-                this.currentPlayer = otherPlayer;
-                otherPlayer.currentOptions.color = 'aqua';
+                if (otherPlayer !== undefined) {
+                    this.currentPlayer = otherPlayer;
+                    otherPlayer.currentOptions.color = 'aqua';
+                } else {
+                    this.currentPlayer =  this.currentPlayer === this.player1 ? this.player2 : this.player1;
+                    this.currentPlayer.currentOptions.color = 'aqua';
+                }
             }
 
             endTurns() {
@@ -278,10 +395,10 @@ window.onload = function() {
                             player.setState('endAttack', player.attack.params);
                         });
                         console.log('send end turn');
-                        engine.emitToRoom('gameEndAttack');
+                        this.emit('gameEndAttack');
                         setTimeout(() => {
                             this.round();
-                            engine.emitToRoom('gameEndTurn');
+                            this.emit('gameEndTurn');
                         }, 600);
                     }, 600);
                 }, 1000);
@@ -289,9 +406,25 @@ window.onload = function() {
 
             round() {
                 this.turns = 0;
-                this.myPlayer.updateAbilities();
+                if (this.singleMode) {
+                    this.players.forEach(player => {
+                        player.updateAbilities();
+                    })
+                } else {
+                    this.myPlayer.updateAbilities();
+                }
                 this.checkWinner();
-                engine.emitToRoom('gameOpponentAbilities', {abilities: this.myPlayer.getAbilities()});
+                if (!this.singleMode) {
+                    engine.emitToRoom('gameOpponentAbilities', {abilities: this.myPlayer.getAbilities()});
+                } else if (!this.isTurningPlayer()) {
+                    this.makeAITurn();
+                }
+            }
+
+            emit(name, params) {
+                if (!this.singleMode) {
+                    engine.emitToRoom(name, params);
+                }
             }
 
             calculateDamage(attack1, attack2) {
@@ -310,8 +443,16 @@ window.onload = function() {
                                     const damage = Math.max(0, Math.floor(((-attack1.damage[aa]) + (attack1.damage[aa] * attack2.blockPercentage / 100))));
                                     player2.updateHealth(damage);
                                 } else {
-                                    const armor = attack1.damage[aa] * player2.armor / 100;
-                                    player2.updateHealth(Math.floor(-attack1.damage[aa] + armor));
+                                    let damage = attack1.damage[aa];
+                                    if (attack1.weakness) {
+                                        attack1.weakness.forEach(e => {
+                                            if (e.id === attack2.id) {
+                                                damage += e.damage;
+                                            }
+                                        });
+                                    }
+                                    const armor = damage * player2.armor / 100;
+                                    player2.updateHealth(Math.floor(-damage + armor));
                                 }
                                 break;
                             }
@@ -572,18 +713,20 @@ window.onload = function() {
                     'enchanted-steel': {
                         keyName: 'enchanted-steel',
                         iconSrc: 'enchanted-steel.jpg',
-                        turns: 3,
+                        turns: 4,
                         effects: {
-                            armor: 50
+                            armor: 60
                         }
                     }
                 };
                 this.controls = {
+                    // [area, position]: 0 jump, 1 stay, 2 sit
                     'KeyW': {
                         damage: [0],
                         attackArea: [-1],
                         position: 0,
                         energy: -10,
+                        counterattack: ['KeyD', 'KeyA'],
                         name: 'Прыжок'
                     },
                     'KeyS': {
@@ -591,47 +734,85 @@ window.onload = function() {
                         attackArea: [-1],
                         position: 2,
                         energy: -10,
+                        counterattack: ['KeyG'],
                         name: 'Присед'
                     },
-                    'KeyA': {
-                        damage: [15],
-                        attackArea: [0],
-                        attackType: 1,
-                        position: 0,
-                        energy: 20,
-                        name: 'Захват в прыжке'
-                    },
                     'KeyF': {
-                        damage: [10, 20],
-                        attackArea: [0, 1],
+                        id: 0,
+                        damage: [20],
+                        attackArea: [1],
                         attackType: 1,
                         position: 1,
                         energy: 20,
+                        counterattack: ['KeyJ'],
                         name: 'Удар в голову'
                     },
                     'KeyG': {
-                        damage: [10, 20],
+                        id: 1,
+                        damage: [20, 20],
                         attackArea: [1, 2],
                         attackType: 1,
                         position: 1,
                         energy: 20,
+                        counterattack: ['KeyF'],
+                        weakness: [{
+                            id: 0,
+                            damage: -20
+                        }],
                         name: 'Удар с ноги'
                     },
-                    'KeyH': {
-                        damage: [15, 5],
-                        attackArea: [1, 0],
-                        attackType: 1,
-                        position: 0,
-                        energy: 20,
-                        name: 'Удар в прыжке'
-                    },
                     'KeyJ': {
-                        damage: [15, 5],
+                        id: 2,
+                        damage: [20, 5],
                         attackArea: [1, 2],
                         attackType: 3,
                         position: 2,
                         energy: 20,
+                        counterattack: ['KeyG'],
+                        weakness: [{
+                            id: 1,
+                            damage: -20
+                        }],
                         name: 'Подножка'
+                    },
+                    'KeyH': {
+                        id: 3,
+                        damage: [20, 15],
+                        attackArea: [0, 1],
+                        attackType: 1,
+                        position: 0,
+                        energy: 20,
+                        counterattack: ['KeyD'],
+                        weakness: [{
+                                id: 5, // удар с низа
+                                damage: -15
+                            },
+                            {
+                                id: 4, // захват в прыжке
+                                damage: -20
+                            }
+                        ],
+                        name: 'Удар в прыжке'
+                    },
+                    'KeyA': {
+                        id: 4,
+                        damage: [20],
+                        attackArea: [0],
+                        attackType: 1,
+                        position: 0,
+                        energy: 20,
+                        counterattack: ['KeyD'],
+                        name: 'Захват в прыжке'
+                    },
+                    'KeyD': {
+                        id: 5,
+                        damage: [20],
+                        attackArea: [0],
+                        attackType: 1,
+                        position: 1,
+                        energy: 20,
+                        counterattack: ['KeyF', 'KeyG', 'KeyJ'],
+                        name: 'Удар с низа'
                     },
                     'KeyZ': {
                         damage: [0],
@@ -640,6 +821,7 @@ window.onload = function() {
                         blockType: 1,
                         blockPercentage: 100,
                         energy: -10,
+                        counterattack: ['KeyJ'],
                         name: 'Блок'
                     },
                     'KeyX': {
@@ -649,6 +831,7 @@ window.onload = function() {
                         blockType: 3,
                         blockPercentage: 100,
                         energy: -10,
+                        counterattack: ['KeyG'],
                         name: 'Нижний блок'
                     },
                     'KeyL': {
@@ -659,7 +842,7 @@ window.onload = function() {
                         name: 'Ничего не делать'
                     },
                     'KeyQ': {
-                        damage: [50],
+                        damage: [60],
                         attackArea: [1],
                         attackType: 1,
                         position: 1,
@@ -667,6 +850,7 @@ window.onload = function() {
                         mana: 35,
                         turns: 0,
                         type: 'active',
+                        counterattack: ['KeyJ', 'KeyH'],
                         name: 'Силовой удар'
                     },
                     'KeyE': {
@@ -719,6 +903,7 @@ window.onload = function() {
                 this.mana = this.maxmana;
                 this.energy = this.maxenergy;
                 this.currentOptions.color = this.options.color;
+                this.abilities = {};
             }
 
             updateState() {
@@ -830,20 +1015,9 @@ window.onload = function() {
                 };
             }
 
-            // setName(name) {
-            //     this.name = name;
-            // }
-
-            setBackgroundIndex(index) {
-                this.bgIndex = index;
-            }
-
-            setRoomId(id) {
-                this.roomId = id;
-            }
-
-            startGame(myPlayerIndex, name1, name2) {
-                this.game.start(myPlayerIndex, name1, name2, {bgIndex: this.bgIndex});
+            startGame(myPlayerIndex, name1, name2, params) {
+                this.roomId = params.roomId;
+                this.game.start(myPlayerIndex, name1, name2, params);
 
                 if (!this.active) {
                     this.run();

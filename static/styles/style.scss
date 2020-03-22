@@ -2,26 +2,9 @@
 @import './block/player-info';
 @import './block/rooms';
 @import './block/radio-image';
-
-.game {
-  width: 700px; }
-
-.game__players {
-  display: none;
-  padding-bottom: 15px;
-  justify-content: space-between; }
-
-.game__engine {
-  display: none; }
-
-.game.active .game__room {
-  display: none; }
-
-.game.active .game__engine {
-  display: block; }
-
-.game.play .game__players {
-  display: flex; }
+@import './block/single';
+@import './block/helpers';
+@import './block/default';
 
 .player-info {
   display: flex; }
@@ -79,6 +62,7 @@ body {
 
 .room-list {
   display: flex;
+    margin-bottom: 0;
   padding-top: 5px;
   list-style: none;
   padding-left: 0; }

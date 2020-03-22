@@ -1,10 +1,11 @@
 .game {
-  width: 700px; }
+  width: 800px; }
   .game__players {
     display: none;
     padding-bottom: 15px;
     justify-content: space-between; }
   .game__engine {
+    width: 700px;
     display: none; }
 
 .game.active .game__room {
@@ -41,7 +42,7 @@
   margin-left: 8px;
   margin-bottom: 8px; }
   .room__bg img {
-    max-height: 80px; }
+    max-height: 70px; }
 
 .radio-image {
   display: flex; }
@@ -52,25 +53,21 @@
   .radio-image input:checked + img {
     border-color: #92ff2f; }
 
-.game {
-  width: 700px; }
-
-.game__players {
-  display: none;
-  padding-bottom: 15px;
-  justify-content: space-between; }
-
-.game__engine {
-  display: none; }
-
-.game.active .game__room {
-  display: none; }
-
-.game.active .game__engine {
-  display: block; }
-
-.game.play .game__players {
+.single {
   display: flex; }
+
+.game-border {
+  border: 1px solid #ddd; }
+
+.game-section {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid #ddd; }
+  .game-section h3 {
+    margin-top: 0; }
+
+select {
+  height: 21px; }
 
 .player-info {
   display: flex; }
@@ -128,6 +125,7 @@ body {
 
 .room-list {
   display: flex;
+  margin-bottom: 0;
   padding-top: 5px;
   list-style: none;
   padding-left: 0; }
