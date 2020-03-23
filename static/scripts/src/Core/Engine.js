@@ -1,5 +1,11 @@
 import Game from "./Game";
 
+const digitsKeys = {
+    'Digit1': 1,
+    'Digit2': 2,
+    'Digit3': 3
+};
+
 class Engine {
     constructor(socket) {
         this.game = null;
@@ -9,7 +15,12 @@ class Engine {
 
         document.addEventListener('keydown', (event) => {
             // console.log(event.code);
-            this.makeTurn(event.code);
+            const digit = digitsKeys[event.code];
+            if (digit) {
+                this.setPlayerPosition(digit);
+            } else {
+                this.makeTurn(event.code);
+            }
         });
 
         window.onblur = () => {
@@ -37,6 +48,10 @@ class Engine {
             this.game.onSocketEvent('gameOpponentAbilities', data);
         });
 
+        this.socket.on('gameOpponentPosition', (data) => {
+            this.game.onSocketEvent('gameOpponentPosition', data);
+        });
+
         this.socket.on('gameEndTurn', () => {
             this.game.onSocketEvent('gameEndTurn');
         });
@@ -55,6 +70,12 @@ class Engine {
     makeTurn(code) {
         if (this.play) {
             this.game.makeTurn(code);
+        }
+    }
+
+    setPlayerPosition(num) {
+        if (this.play) {
+            this.game.setPosition(num);
         }
     }
 

@@ -148,7 +148,6 @@ window.onload = function() {
         });
 
         socket.on('startGame', (data) => {
-
             renderGame(data);
 
             const player = new Player({

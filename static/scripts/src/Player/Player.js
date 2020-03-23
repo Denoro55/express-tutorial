@@ -12,6 +12,7 @@ class Player {
         this.energy = this.maxenergy;
         this.energyRegen = 10;
         this.armor = 0;
+        this.position = 0;
         this.index = options.index;
         this.preparedAbilities = [];
         this.abilities = {};
@@ -20,7 +21,7 @@ class Player {
             attack: {
                 width: 200,
                 height: 50,
-                startTime: 195,
+                startTime: 215,
                 speed: 6
             }
         };
@@ -108,10 +109,11 @@ class Player {
                 position: 0,
                 energy: 20,
                 counterattack: ['KeyD'],
-                weakness: [{
-                    id: 5, // удар с низа
-                    damage: -15
-                },
+                weakness: [
+                    {
+                        id: 5, // удар с низа
+                        damage: -15
+                    },
                     {
                         id: 4, // захват в прыжке
                         damage: -20

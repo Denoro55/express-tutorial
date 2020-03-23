@@ -132,6 +132,10 @@ io.on('connection', function(socket) {
         socket.broadcast.to(getRoom(data.roomId)).emit('gameOpponentAbilities', {abilities: data.abilities} );
     });
 
+    socket.on('gameOpponentPosition', function(data) {
+        socket.broadcast.to(getRoom(data.roomId)).emit('gameOpponentPosition', {num: data.num} );
+    });
+
     socket.on('gameEndTurn', function(data) {
         socket.broadcast.to(getRoom(data.roomId)).emit('gameEndTurn', {} );
     });
