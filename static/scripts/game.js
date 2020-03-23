@@ -326,17 +326,9 @@ window.onload = function() {
                     let attackKey;
                     attackKey = filteredKeys[Math.floor(Math.random() * filteredKeys.length)];
 
-                    if (this.difficult === 2) { // medium
+                    if (this.difficult >= 2) { // medium
                         if (this.turns === 1 && this.currentPlayer.energy >= 20) { // ответный удар
-                            if (Math.random() < .35) {
-                                if (this.getCounterattack()) {
-                                    attackKey = this.getCounterattack();
-                                }
-                            }
-                        }
-                    } else if (this.difficult === 3) { // medium
-                        if (this.turns === 1 && this.currentPlayer.energy >= 20) { // ответный удар
-                            if (Math.random() < .8) {
+                            if (Math.random() < .35 * (this.difficult - 1)) {
                                 if (this.getCounterattack()) {
                                     attackKey = this.getCounterattack();
                                 }

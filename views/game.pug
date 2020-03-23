@@ -34,15 +34,13 @@ block content
 
             .game__single.game-section
                 h3 Боссы
-                .single
+                form#js-boss-form.single
                     //.single__left
-                    //    form.js-single-form
-                    //        select
-                    //            each i in ['Чумной доктор']
-                    //                option(name=`${i}`)= i
+                    //    select(name="boss_name")
+                    //        each i in [{value: 'forest-golem', name: 'Голем'}]
+                    //            option(value=`${i.value}(${i.name})`)= i.name
                     //.single__right.ml-2
-                    //    button Начать игру
-
+                    //    button(type="submit") Начать игру
         .game__engine
             h3.js-game-status Ожидание противника...
             .game__players
@@ -62,4 +60,4 @@ block content
     script(src="/socket.io/socket.io.js")
 
 block script
-    script(src="/static/scripts/game.js")
+    script(src="/static/scripts/dist/bundle.js")
