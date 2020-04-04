@@ -1,16 +1,18 @@
 import Display from "./Display";
+import getRandom from "../helpers/getRandom";
+import effects from "../Player/effects";
 
 class Game {
     constructor(engine, myPlayerIndex, player1, player2, params) {
-        this.canvas = document.querySelector('#game');
-        this.ctx = this.canvas.getContext('2d');
         this.engine = engine;
-        this.display = new Display(this);
-        this.gameWidth = this.canvas.width;
-        this.gameHeight = this.canvas.height;
+        if (!params.test) {
+            this.display = new Display(this);
+        }
+        this.debug = false;
+        this.testMode = params.test || false;
+        this.singleMode = params.singleMode || false;
         this.turns = 0;
         this.turnTimer = null;
-        this.singleMode = params.singleMode || false;
         this.difficult = Number(params.difficult) || 1;
         this.player1 = player1;
         this.player2 = player2;
@@ -26,7 +28,7 @@ class Game {
             case 'gameChangeTurn':
                 console.log('socket change turn, ', this.turns);
 
-                const enemyAttack = this.opponentPlayer.controls[data.code];
+                const enemyAttack = this.opponentPlayer.getAttack(data.code);
                 this.prepareAttack(enemyAttack, this.opponentPlayer);
 
                 if (this.turns < 2) {
@@ -95,21 +97,23 @@ class Game {
         this.opponentPlayer.position = num;
     }
 
-    makeTurn(code) {
+    makeTurn(code, test = false) {
+        console.log('try to make turn');
+
         // debug info
         if (code === 'KeyM') {
             console.log(this);
             return;
         }
 
-        if (this.isTurningPlayer() && this.turns < 2) {
-            console.log('make turn player', this.currentPlayer.index, this.singleMode);
+        if (this.turns < 2 && (this.isTurningPlayer() || test)) {
+            this.console('make turn player: ' + this.currentPlayer.index + ': ', this.singleMode);
 
-            const attack = this.myPlayer.controls[code];
-            if (!this.myPlayer.isAttackAvailable(attack)) return;
+            const attack = this.currentPlayer.getAttack(code);
+            if (!this.currentPlayer.isAttackAvailable(attack)) return;
 
             clearTimeout(this.turnTimer);
-            this.prepareAttack(attack, this.myPlayer);
+            this.prepareAttack(attack, this.currentPlayer);
 
             this.emit('gameChangeTurn', { attackCode: code });
             this.endTurn();
@@ -125,7 +129,7 @@ class Game {
         } else {
             if (this.singleMode) {
                 this.changeTurn(this.currentPlayer);
-                if (!this.isTurningPlayer()) {
+                if (!this.isTurningPlayer() && !this.testMode) {
                     setTimeout(() => {
                         this.makeAITurn();
                     }, 500 + Math.random() * 500);
@@ -150,27 +154,41 @@ class Game {
             this.currentPlayer = this.currentPlayer === this.player1 ? this.player2 : this.player1;
             this.currentPlayer.currentOptions.color = 'aqua';
         }
+
+        // stun
+        if (this.isTurningPlayer() && this.currentPlayer.state.skipTurn) {
+            this.makeTurn('stun');
+        }
     }
 
     endTurns() {
-        setTimeout(() => {
-            console.log('подсчет');
-            this.calculateDamage(this.player1.attack.params, this.player2.attack.params);
+        console.log('подсчет');
+        if (!this.testMode) {
             setTimeout(() => {
-                this.players.forEach(player => {
-                    player.setState('endAttack', player.attack.params);
-                });
-                console.log('send end turn');
-                this.emit('gameEndAttack');
+                this.calculateDamage(this.player1.attack.params, this.player2.attack.params);
                 setTimeout(() => {
-                    this.round();
-                    this.emit('gameEndTurn');
+                    this.players.forEach(player => {
+                        player.setState('endAttack', player.attack.params);
+                    });
+                    console.log('send end turn');
+                    this.emit('gameEndAttack');
+                    setTimeout(() => {
+                        this.round();
+                        this.emit('gameEndTurn');
+                    }, 600);
                 }, 600);
-            }, 600);
-        }, 1000);
+            }, 1000);
+        } else {
+            this.calculateDamage(this.player1.attack.params, this.player2.attack.params);
+            this.players.forEach(player => {
+                player.setState('endAttack', player.attack.params);
+            });
+            this.round();
+        }
     }
 
     round() {
+        console.log('round');
         this.turns = 0;
         if (this.singleMode) {
             this.players.forEach(player => {
@@ -181,27 +199,23 @@ class Game {
         }
         this.checkWinner();
         this.emit('gameOpponentAbilities', {abilities: this.myPlayer.getAbilities()});
-    }
 
-    getCounterattack() {
-        const attacks = this.myPlayer.attack.params.counterattack;
-        if (!attacks) return false;
-        return attacks[Math.floor(Math.random() * attacks.length)];
+        // stun
+        if (this.isTurningPlayer() && this.currentPlayer.state.skipTurn) {
+            this.makeTurn('stun');
+        }
     }
 
     getOpponent() {
         return this.currentPlayer === this.player1 ? this.player2 : this.player1;
     }
 
-    getRandom(n) {
-        return Math.floor(Math.random() * n);
-    }
-
     makeAITurn() {
         let attempts = true;
+        let counterAttacks = this.opponentPlayer.getCounterattacks(this.myPlayer.attack.params.keyName);
+        console.log('доступные контратаки: ', counterAttacks);
 
-        const attacks = this.currentPlayer.controls;
-        const keys = Object.keys(attacks);
+        const keys = Object.keys(this.currentPlayer.controls);
         let filteredKeys = keys.filter(k => k !== 'KeyL');
 
         if (this.difficult >= 2) { // средние и тяжелые
@@ -210,7 +224,7 @@ class Game {
                 if (this.currentPlayer.energy >= 20) {
                     filteredKeys = filteredKeys.filter(k => k !== 'KeyZ' && k !== 'KeyX' && k !== 'KeyA');
                 }
-                this.setAIPosition(this.getRandom(3));
+                this.setAIPosition(getRandom(3));
             }
         }
 
@@ -225,13 +239,15 @@ class Game {
 
         while (attempts) {
             let attackKey;
-            attackKey = filteredKeys[Math.floor(Math.random() * filteredKeys.length)];
+            attackKey = filteredKeys[getRandom(filteredKeys.length)]; // случайный выбор всех отфильтрованных атак
 
-            if (this.difficult >= 2) { // medium
+            if (this.difficult >= 2) { // >= medium
                 if (this.turns === 1 && this.currentPlayer.energy >= 20) { // ответный удар
-                    if (Math.random() < .35 * (this.difficult - 1)) {
-                        if (this.getCounterattack()) {
-                            attackKey = this.getCounterattack();
+                    const chance = this.opponentPlayer.boss ? this.opponentPlayer.AIOptions.counterAttackChance / 100 : .35 * (this.difficult - 1);
+                    if (Math.random() < chance) {
+                        if (counterAttacks.length > 0) {
+                            console.log('КОНТРАТАКА!');
+                            attackKey = counterAttacks[getRandom(counterAttacks.length)];
                         }
                     }
                 }
@@ -246,12 +262,14 @@ class Game {
             } else {
                 console.log('try again');
                 filteredKeys = filteredKeys.filter(k => k !== attackKey);
+                counterAttacks = counterAttacks.filter(k => k !== attackKey);
             }
         }
     }
 
     prepareAttack(attack, player) {
         this.turns += 1;
+        console.log('turns ++');
         player.setState('attack', attack);
         player.energy -= attack.energy;
         if (attack.mana) {
@@ -293,7 +311,7 @@ class Game {
                     if (attack1.attackArea[aa] === attack2.position) {
                         if (attack2.blockType && attack2.blockType === attack1.attackType && canProtect) {
                             const damage = Math.max(0, Math.floor(((-attack1.damage[aa]) + (attack1.damage[aa] * attack2.blockPercentage / 100))));
-                            player2.updateHealth(damage);
+                            player2.addHealth(damage);
                         } else {
                             let damage = attack1.damage[aa];
                             if (attack1.weakness && canProtect) {
@@ -303,8 +321,18 @@ class Game {
                                     }
                                 });
                             }
-                            const armor = damage * player2.armor / 100;
-                            player2.updateHealth(Math.floor(-damage + armor));
+
+                            // effects
+                            if (attack1.effects) {
+                                Object.keys(attack1.effects).forEach(effect => {
+                                    effects[effect](attack1.effects[effect], player2);
+                                });
+                            }
+
+                            if (damage < 0) damage = 0;
+
+                            const armor = damage * player2.state.armor / 100;
+                            player2.addHealth(Math.floor(-damage + armor));
                         }
                         break;
                     }
@@ -366,6 +394,12 @@ class Game {
                 player.attack.time += player.options.attack.speed;
             }
         })
+    }
+
+    console(message) {
+        if (this.debug) {
+            console.log(message);
+        }
     }
 
     render() {

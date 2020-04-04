@@ -3,12 +3,16 @@ import getAttackPosition from "../helpers/getAttackPosition";
 
 class Display {
     constructor(game) {
+        this.canvas = document.querySelector('#game');
+        this.ctx = this.canvas.getContext('2d');
+        this.gameWidth = this.canvas.width;
+        this.gameHeight = this.canvas.height;
         this.game = game;
     }
 
     render() {
-        const ctx = this.game.ctx;
-        ctx.clearRect(0, 0, this.game.gameWidth, this.game.gameHeight);
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.gameWidth, this.gameHeight);
         this.drawBackground(ctx);
         this.drawText(ctx);
         this.drawPlayers(ctx);
@@ -24,9 +28,9 @@ class Display {
         ctx.font = "16px Arial";
         ctx.fillStyle = "#fff";
         ctx.textAlign = "center";
-        ctx.fillText(this.game.player1.getName() + ' против ' + this.game.player2.getName(), this.game.gameWidth / 2, 40);
+        ctx.fillText(this.game.player1.getName() + ' против ' + this.game.player2.getName(), this.gameWidth / 2, 40);
         ctx.font = "12px Arial";
-        ctx.fillText(this.game.player1.getWins() + ':' + this.game.player2.getWins(), this.game.gameWidth / 2, 60);
+        ctx.fillText(this.game.player1.getWins() + ':' + this.game.player2.getWins(), this.gameWidth / 2, 60);
     }
 
     drawPlayers(ctx) {
@@ -53,17 +57,17 @@ class Display {
             } else { // player 2
                 this.drawPlayer(ctx, {
                     player: currentPlayer,
-                    imageX: this.game.gameWidth - player.position.x - player.size.x,
-                    posX: this.game.gameWidth - player.position.x - player.size.x,
-                    barX: (this.game.gameWidth - player.position.x - player.size.x) - player.position.x,
+                    imageX: this.gameWidth - player.position.x - player.size.x,
+                    posX: this.gameWidth - player.position.x - player.size.x,
+                    barX: (this.gameWidth - player.position.x - player.size.x) - player.position.x,
                     attackDir: -1
                 });
                 this.drawCells(ctx, {
-                    x: this.game.gameWidth - player.position.x - player.size.x,
+                    x: this.gameWidth - player.position.x - player.size.x,
                     y: player.position.y + player.size.y
                 }, currentPlayer);
                 this.drawPoints(ctx, {
-                    x: this.game.gameWidth - player.position.x - player.size.x - 25,
+                    x: this.gameWidth - player.position.x - player.size.x - 25,
                     y: player.position.y + player.size.y / 2
                 }, currentPlayer);
             }
@@ -91,6 +95,7 @@ class Display {
             currentAttackTime: currentPlayer.attack.time
         });
 
+        // attack block
         ctx.beginPath();
         ctx.globalAlpha = Math.max(0, 1 - (currentPlayer.attack.time / attackStartTime));
         ctx.fillStyle = 'black';

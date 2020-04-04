@@ -1,6 +1,6 @@
 import Engine from './Core/Engine';
-import Golem from "./Player/Golem";
-import Player from "./Player/Player";
+import Golem from "./Actors/Golem";
+import Player from "./Actors/Player";
 
 window.onload = function() {
     (() => {
@@ -70,12 +70,12 @@ window.onload = function() {
 
             const player = new Player({
                 name,
-                skin: '/static/img/skins/1.jpg',
+                skin: '1.jpg',
                 index: 1
             });
             const player2 = new Player({
                 name: botName,
-                skin: '/static/img/skins/2.jpg',
+                skin: '2.jpg',
                 index: 2
             });
 
@@ -112,12 +112,12 @@ window.onload = function() {
 
             const player = new Player({
                 name,
-                skin: '/static/img/skins/1.jpg',
+                skin: '1.jpg',
                 index: 1
             });
             const boss = new mappingBoss[bossKey]({
                 name: bossName,
-                skin: '/static/img/skins/boss/golem.png',
+                // skin: '/static/img/skins/boss/golem.png',
                 index: 2
             });
 
@@ -152,12 +152,12 @@ window.onload = function() {
 
             const player = new Player({
                 name: data.player1.name,
-                skin: '/static/img/skins/1.jpg',
+                skin: '1.jpg',
                 index: 1
             });
             const player2 = new Player({
                 name: data.player2.name,
-                skin: '/static/img/skins/2.jpg',
+                skin: '2.jpg',
                 index: 2
             });
 

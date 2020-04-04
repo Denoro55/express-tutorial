@@ -1,7 +1,10 @@
+import attacks from "../Player/attacks";
+
 class Player {
     constructor(options) {
         this.name = options.name;
         this.setSkin(options.skin);
+        this.boss = false;
         this.wins = 0;
         this.maxhp = 150;
         this.hp = this.maxhp;
@@ -11,7 +14,11 @@ class Player {
         this.manaRegen = 5;
         this.energy = this.maxenergy;
         this.energyRegen = 10;
-        this.armor = 0;
+        this.state = {
+            armor: 0,
+            skipTurn: false
+        };
+        // this.armor = 0;
         this.position = 0;
         this.index = options.index;
         this.preparedAbilities = [];
@@ -35,168 +42,43 @@ class Player {
                 name: ''
             }
         };
-        this.passiveAbilities = {
-            'enchanted-steel': {
-                keyName: 'enchanted-steel',
-                iconSrc: 'enchanted-steel.jpg',
-                turns: 4,
-                effects: {
-                    armor: 60
-                }
-            }
+
+        this.controls = attacks;
+
+        this.counterAttacks = {
+            'KeyW': ['KeyD', 'KeyA'],
+            'KeyS': ['KeyG'],
+            'KeyF': ['KeyJ'],
+            'KeyG': ['KeyF'],
+            'KeyH': ['KeyD'],
+            'KeyJ': ['KeyG'],
+            'KeyA': ['KeyD'],
+            'KeyD': ['KeyF', 'KeyG', 'KeyJ'],
+            'KeyZ': ['KeyJ'],
+            'KeyX': ['KeyG'],
+            // 'KeyL': ['KeyG'],
+            'KeyQ': ['KeyJ', 'KeyH'],
+            'KeyE': ['KeyJ', 'KeyH', 'KeyF', 'KeyG'],
         };
-        this.controls = {
-            // [area, position]: 0 jump, 1 stay, 2 sit
-            'KeyW': {
-                damage: [0],
-                attackArea: [-1],
-                position: 0,
-                energy: -10,
-                counterattack: ['KeyD', 'KeyA'],
-                name: 'Прыжок'
-            },
-            'KeyS': {
-                damage: [0],
-                attackArea: [-1],
-                position: 2,
-                energy: -10,
-                counterattack: ['KeyG'],
-                name: 'Присед'
-            },
-            'KeyF': {
-                id: 0,
-                damage: [20],
-                attackArea: [1],
-                attackType: 1,
-                position: 1,
-                energy: 20,
-                counterattack: ['KeyJ'],
-                name: 'Удар в голову'
-            },
-            'KeyG': {
-                id: 1,
-                damage: [20, 20],
-                attackArea: [1, 2],
-                attackType: 1,
-                position: 1,
-                energy: 20,
-                counterattack: ['KeyF'],
-                weakness: [{
-                    id: 0,
-                    damage: -20
-                }],
-                name: 'Удар с ноги'
-            },
-            'KeyJ': {
-                id: 2,
-                damage: [20, 5],
-                attackArea: [1, 2],
-                attackType: 3,
-                position: 2,
-                energy: 20,
-                counterattack: ['KeyG'],
-                weakness: [{
-                    id: 1,
-                    damage: -20
-                }],
-                name: 'Подножка'
-            },
-            'KeyH': {
-                id: 3,
-                damage: [20, 15],
-                attackArea: [0, 1],
-                attackType: 1,
-                position: 0,
-                energy: 20,
-                counterattack: ['KeyD'],
-                weakness: [
-                    {
-                        id: 5, // удар с низа
-                        damage: -15
-                    },
-                    {
-                        id: 4, // захват в прыжке
-                        damage: -20
-                    }
-                ],
-                name: 'Удар в прыжке'
-            },
-            'KeyA': {
-                id: 4,
-                damage: [20],
-                attackArea: [0],
-                attackType: 1,
-                position: 0,
-                energy: 20,
-                counterattack: ['KeyD'],
-                name: 'Захват в прыжке'
-            },
-            'KeyD': {
-                id: 5,
-                damage: [20],
-                attackArea: [0],
-                attackType: 1,
-                position: 1,
-                energy: 20,
-                counterattack: ['KeyF', 'KeyG', 'KeyJ'],
-                name: 'Удар с низа'
-            },
-            'KeyZ': {
-                damage: [0],
-                attackArea: [-1],
-                position: 1,
-                blockType: 1,
-                blockPercentage: 100,
-                energy: -10,
-                counterattack: ['KeyJ'],
-                name: 'Блок'
-            },
-            'KeyX': {
-                damage: [0],
-                attackArea: [-1],
-                position: 2,
-                blockType: 3,
-                blockPercentage: 100,
-                energy: -10,
-                counterattack: ['KeyG'],
-                name: 'Нижний блок'
-            },
-            'KeyL': {
+
+        // вызов программой
+        this.actions = {
+            'stun': {
+                keyName: 'KeyL',
                 damage: [0],
                 attackArea: [-1],
                 position: 1,
                 energy: -10,
-                name: 'Ничего не делать'
-            },
-            'KeyQ': {
-                damage: [60],
-                attackArea: [1],
-                attackType: 1,
-                position: 1,
-                energy: 20,
-                mana: 35,
-                turns: 0,
-                type: 'active',
-                counterattack: ['KeyJ', 'KeyH'],
-                name: 'Силовой удар'
-            },
-            'KeyE': {
-                damage: [0],
-                attackArea: [-1],
-                position: 1,
-                energy: 10,
-                mana: 35,
-                type: 'passive',
-                counterattack: ['KeyJ', 'KeyH', 'KeyF'],
-                options: this.passiveAbilities['enchanted-steel'],
-                name: 'Зачарованная сталь'
-            },
+                name: 'Оглушен'
+            }
         }
     }
 
     setSkin(src) {
+        if (!src) return;
+
         const image = new Image();
-        image.src = src;
+        image.src = '/static/img/skins/' + src;
         this.skin = image;
     }
 
@@ -257,14 +139,14 @@ class Player {
         };
 
         Object.keys(ability.options.effects).forEach(key => {
-            this[key] += ability.options.effects[key];
+            ability.options.effects[key].activate(this);
         })
     }
 
     removeAbility(ability) {
         const thisAbility = this.abilities[ability];
         Object.keys(thisAbility.effects).forEach(key => {
-            this[key] -= thisAbility.effects[key]
+            thisAbility.effects[key].deactivate(this);
         });
         delete this.abilities[ability];
     }
@@ -334,7 +216,23 @@ class Player {
         return true;
     }
 
-    updateHealth(add) {
+    getCounterattacks(code) {
+        const availableCounterAttacks = this.counterAttacks[code];
+        if (!availableCounterAttacks) {
+            return [];
+        }
+        return availableCounterAttacks;
+    }
+
+    getAttack(code) {
+        let attack = this.controls[code];
+        if (!attack) {
+            attack = this.actions[code];
+        }
+        return attack;
+    }
+
+    addHealth(add) {
         this.hp += add;
     }
 

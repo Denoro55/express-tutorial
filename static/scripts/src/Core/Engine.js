@@ -67,18 +67,6 @@ class Engine {
         }
     }
 
-    makeTurn(code) {
-        if (this.play) {
-            this.game.makeTurn(code);
-        }
-    }
-
-    setPlayerPosition(num) {
-        if (this.play) {
-            this.game.setPosition(num);
-        }
-    }
-
     pauseGame() {
         this.emitToRoom('gamePlayersStatus', {status: false});
     }
@@ -96,6 +84,18 @@ class Engine {
         };
 
         frame();
+    }
+
+    makeTurn(code) {
+        if (this.play) {
+            this.game.makeTurn(code);
+        }
+    }
+
+    setPlayerPosition(num) {
+        if (this.play) {
+            this.game.setPosition(num);
+        }
     }
 
     emitToRoom(url, params) {
